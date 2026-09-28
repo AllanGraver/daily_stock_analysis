@@ -122,6 +122,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - [修复] 告警来源统计在单次列表请求内复用相同目标的展开结果及失败，避免多条持仓规则重复回放账本；缓存不跨请求，保留最新持仓、失败重试与原有去重数量语义。
 - [新功能] 新增 `/api/v1/screening/screen/check`，对调用方提供的单条快照逐项解释策略硬过滤条件、阈值、当前值与通过/失败/缺失状态，不抓取行情、不调用模型、不改变既有选股结果。
 
+- [新功能] 定时模式启动立即执行的当日去重（`SCHEDULE_STARTUP_DEDUP`，默认开启）：`python main.py --schedule` 在 `SCHEDULE_RUN_IMMEDIATELY=true` 触发启动补跑前检查 `data/analysis_run_state.json`，当天已有成功的全量分析（日期 + scope=full + 股票清单指纹一致）则跳过，否则照常补跑；每日定时任务与手动/API/GitHub Actions 触发永不去重；标记缺失或损坏一律 fail-open 执行（绝不漏跑）；大盘复盘完成度仅记录、不参与判定（复盘补齐由每日定时任务覆盖）；设 `SCHEDULE_STARTUP_DEDUP=false` 可回到此前"每次容器重启都全量重跑"的行为；`--force-run` 可绕过启动去重检查（明确要求立即全量分析）。
+
 <!-- 新条目格式：- [类型] 描述（类型取值：新功能/改进/修复/文档/测试/chore）-->
 <!-- 每条独立一行追加到本段末尾，无需分类标题，合并时冲突最小 -->
 - [修复] 告警规则创建、启停或删除期间切换筛选或分页后，列表刷新使用当前筛选条件，避免旧请求闭包覆盖当前视图。
