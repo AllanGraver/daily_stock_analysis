@@ -8,6 +8,8 @@ from datetime import date, datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import pandas as pd
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from tests.litellm_stub import ensure_litellm_stub
@@ -107,6 +109,60 @@ def _make_pipeline(*, agent_mode: bool = False, save_context_snapshot: bool = Tr
 
 
 class PipelineMarketPhaseContextTestCase(unittest.TestCase):
+    def test_jp_kr_analysis_context_uses_daily_fetcher_when_db_context_missing(self):
+        pipeline = _make_pipeline()
+        pipeline.db.get_analysis_context.side_effect = [None, None]
+        pipeline.db.save_daily_data.return_value = 2
+        pipeline.db._analyze_ma_status.return_value = "短期向好"
+        daily_df = pd.DataFrame(
+            [
+                {
+                    "code": "7203.T",
+                    "date": "2026-06-17",
+                    "open": 2862.5,
+                    "high": 2863.5,
+                    "low": 2803.5,
+                    "close": 2810.0,
+                    "volume": 26726100,
+                    "amount": 75100341000.0,
+                    "pct_chg": -1.32,
+                    "ma5": 2816.6,
+                    "ma10": 2823.8,
+                    "ma20": 2898.08,
+                    "volume_ratio": 1.0,
+                },
+                {
+                    "code": "7203.T",
+                    "date": "2026-06-18",
+                    "open": 2800.0,
+                    "high": 2807.0,
+                    "low": 2774.5,
+                    "close": 2793.5,
+                    "volume": 27620900,
+                    "amount": 77158981500.0,
+                    "pct_chg": -0.59,
+                    "ma5": 2825.8,
+                    "ma10": 2819.3,
+                    "ma20": 2888.85,
+                    "volume_ratio": 1.03,
+                },
+            ]
+        )
+        pipeline.fetcher_manager.get_daily_data.return_value = (daily_df, "YfinanceFetcher")
+
+        context = pipeline._get_analysis_context_with_market_fallback("7203.T")
+
+        self.assertIsNotNone(context)
+        self.assertNotIn("data_missing", context)
+        self.assertEqual(context["code"], "7203.T")
+        self.assertEqual(context["date"], "2026-06-18")
+        self.assertEqual(context["today"]["close"], 2793.5)
+        self.assertEqual(context["yesterday"]["close"], 2810.0)
+        self.assertEqual(context["price_change_ratio"], -0.59)
+        self.assertEqual(context["ma_status"], "短期向好")
+        pipeline.fetcher_manager.get_daily_data.assert_called_once_with("7203.T", days=60)
+        pipeline.db.save_daily_data.assert_called_once_with(daily_df, "7203.T", "YfinanceFetcher")
+
     def test_process_single_stock_propagates_current_time_to_analyze_stock(self):
         pipeline = StockAnalysisPipeline.__new__(StockAnalysisPipeline)
         pipeline.query_id = None
@@ -746,6 +802,7 @@ class PipelineMarketPhaseContextTestCase(unittest.TestCase):
         self.assertEqual(kwargs["trace_id"], "trace-helper")
         self.assertEqual(kwargs["query_source"], "api")
         self.assertEqual(kwargs["report_type"], ReportType.SIMPLE.value)
+        self.assertEqual(kwargs["profile_source"], "auto_default")
 
     def test_decision_signal_helper_failure_does_not_raise(self):
         pipeline = _make_pipeline(agent_mode=False, save_context_snapshot=True)
@@ -787,6 +844,70 @@ class PipelineMarketPhaseContextTestCase(unittest.TestCase):
         self.assertEqual(kwargs["trace_id"], "trace-runtime")
         self.assertEqual(kwargs["query_source"], "api")
         self.assertEqual(kwargs["report_type"], ReportType.SIMPLE.value)
+        self.assertEqual(kwargs["profile_source"], "auto_default")
+        # No index target -> no market override.
+        self.assertIsNone(kwargs["market_override"])
+
+    def test_legacy_pipeline_passes_market_override_cn_for_index_target(self):
+        """V8 — index targets must reach extract_and_persist_from_analysis_result
+        with market_override="cn" via the real wiring (not a mocked helper)."""
+        from src.services.stock_list_parser import ParseStatus, parse_analysis_target
+
+        target = parse_analysis_target("sh000016")
+        self.assertEqual(target.asset_type, ParseStatus.INDEX)
+
+        pipeline = _make_pipeline(agent_mode=False, save_context_snapshot=True)
+        pipeline.trace_id = "trace-index"
+        pipeline.query_source = "api"
+        pipeline.db.save_analysis_history.return_value = 42
+        phase_context = SimpleNamespace(to_dict=MagicMock(return_value=_phase_payload()))
+
+        with (
+            patch("src.core.pipeline.build_market_phase_context", return_value=phase_context),
+            patch("src.core.pipeline.extract_and_persist_from_analysis_result") as mock_extract,
+        ):
+            result = pipeline.analyze_stock(
+                "sh000016",
+                ReportType.SIMPLE,
+                "q-index-signal",
+                current_time=datetime(2026, 3, 27, 10, 0),
+                analysis_target=target,
+            )
+
+        self.assertIsNotNone(result)
+        mock_extract.assert_called_once()
+        kwargs = mock_extract.call_args.kwargs
+        self.assertEqual(kwargs["source_report_id"], 42)
+        self.assertEqual(kwargs["market_override"], "cn")
+
+    def test_legacy_pipeline_passes_market_override_none_for_stock_target(self):
+        """Stock targets (and analysis_target=None) must keep market_override=None."""
+        from src.services.stock_list_parser import parse_analysis_target
+
+        target = parse_analysis_target("600519")
+        self.assertEqual(target.asset_type, "stock")
+
+        pipeline = _make_pipeline(agent_mode=False, save_context_snapshot=True)
+        pipeline.trace_id = "trace-stock"
+        pipeline.query_source = "api"
+        pipeline.db.save_analysis_history.return_value = 42
+        phase_context = SimpleNamespace(to_dict=MagicMock(return_value=_phase_payload()))
+
+        with (
+            patch("src.core.pipeline.build_market_phase_context", return_value=phase_context),
+            patch("src.core.pipeline.extract_and_persist_from_analysis_result") as mock_extract,
+        ):
+            result = pipeline.analyze_stock(
+                "600519",
+                ReportType.SIMPLE,
+                "q-stock-signal",
+                current_time=datetime(2026, 3, 27, 10, 0),
+                analysis_target=target,
+            )
+
+        self.assertIsNotNone(result)
+        mock_extract.assert_called_once()
+        self.assertIsNone(mock_extract.call_args.kwargs["market_override"])
 
     def test_legacy_pipeline_does_not_extract_when_history_save_fails(self):
         pipeline = _make_pipeline(agent_mode=False, save_context_snapshot=True)
@@ -877,6 +998,7 @@ class PipelineMarketPhaseContextTestCase(unittest.TestCase):
         kwargs = mock_extract.call_args.kwargs
         self.assertEqual(kwargs["source_report_id"], 84)
         self.assertEqual(kwargs["report_type"], ReportType.SIMPLE.value)
+        self.assertEqual(kwargs["profile_source"], "auto_default")
         self.assertIs(kwargs["context_snapshot"], pipeline.db.save_analysis_history.call_args.kwargs["context_snapshot"])
 
 

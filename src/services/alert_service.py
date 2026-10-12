@@ -32,6 +32,7 @@ from src.services.portfolio_alerts import (
     DRY_RUN_TOTAL_TIMEOUT_SECONDS,
     PORTFOLIO_ALERT_TYPES,
     SYMBOL_BATCH_TARGET_SCOPES,
+    ExpandedSymbolTarget,
     PortfolioRiskAlert,
     RuntimeAlertPayload,
     StaticAlertEvaluation,
@@ -55,7 +56,8 @@ from src.services.market_light_alerts import (
     make_market_light_payload,
     normalize_market_alert_parameters,
 )
-from src.services.market_light_service import normalize_market_region
+from src.services.market_light_service import normalize_market_alert_region
+from src.services.decision_signal_summary import summarize_decision_signal
 from src.analysis_context_pack_overview import (
     ANALYSIS_CONTEXT_PACK_OVERVIEW_KEY,
     extract_analysis_context_pack_overview,
@@ -937,7 +939,7 @@ class AlertService:
             return target.strip()
         if target_scope == "market":
             try:
-                return normalize_market_region(target)
+                return normalize_market_alert_region(target)
             except ValueError as exc:
                 raise AlertServiceError(str(exc)) from exc
         try:
@@ -1006,6 +1008,10 @@ class AlertService:
         *,
         config: Optional[Any] = None,
         include_overflow_payload: bool = True,
+        read_only: bool = False,
+        target_expansion_cache: Optional[
+            Dict[tuple[str, str], tuple[List[ExpandedSymbolTarget], int] | Exception]
+        ] = None,
     ) -> List[RuntimeAlertPayload]:
         data = self._serialize_rule_base(row)
         parent_key = self._semantic_key(
@@ -1026,13 +1032,27 @@ class AlertService:
                 from src.config import get_config
 
                 config = get_config()
+            cache_key = (data["target_scope"], data["target"])
             try:
-                targets, overflow_count = expand_symbol_targets(
-                    target_scope=data["target_scope"],
-                    target=data["target"],
-                    config=config,
-                )
+                if target_expansion_cache is not None and cache_key in target_expansion_cache:
+                    cached_expansion = target_expansion_cache[cache_key]
+                    if isinstance(cached_expansion, Exception):
+                        raise cached_expansion
+                    targets, overflow_count = cached_expansion
+                else:
+                    targets, overflow_count = expand_symbol_targets(
+                        target_scope=data["target_scope"],
+                        target=data["target"],
+                        config=config,
+                        read_only=read_only,
+                    )
+                    if target_expansion_cache is not None:
+                        target_expansion_cache[cache_key] = (targets, overflow_count)
             except Exception as exc:
+                # Failed expansions can also replay large ledgers. Share the
+                # failure for this request, but create each rule's own payload.
+                if target_expansion_cache is not None:
+                    target_expansion_cache[cache_key] = exc
                 return [
                     make_static_payload(
                         parent_key=parent_key,
@@ -1226,6 +1246,7 @@ class AlertService:
             "market_phase_summary": visibility.get("market_phase_summary"),
             "analysis_context_pack_overview": visibility.get("analysis_context_pack_overview"),
             "analysis_visibility_source": visibility.get("analysis_visibility_source"),
+            "decision_signal_summary": visibility.get("decision_signal_summary"),
         }
 
     @staticmethod
@@ -1234,6 +1255,7 @@ class AlertService:
             "market_phase_summary": None,
             "analysis_context_pack_overview": None,
             "analysis_visibility_source": None,
+            "decision_signal_summary": None,
         }
         if not diagnostics:
             return result
@@ -1245,6 +1267,7 @@ class AlertService:
         if not isinstance(parsed, dict):
             result["analysis_visibility_source"] = "legacy_text"
             return result
+        result["decision_signal_summary"] = summarize_decision_signal(parsed.get("decision_signal_summary"))
         visibility = parsed.get("analysis_visibility")
         if not isinstance(visibility, dict):
             return result

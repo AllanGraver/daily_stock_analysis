@@ -23,6 +23,14 @@
 
 ## Legacy 配置兼容
 
+规则列表现在返回只读 `rule_sources`：`legacy_configured` 为校验通过的环境规则条目数，`legacy_effective` 为与启用数据库规则按后台 worker 原有逻辑去重后的环境规则数。它描述未筛选的配置加载结果，不代表轮询已启动；重复环境条目可能计入前者，但只计入后者一次。无效条目沿用 worker 的跳过规则。
+
+来源统计保留后台规则优先级、数据库与展开目标数量上限及去重语义。持仓目标通过只读账本回放获取，不查询实时行情，也不重写持仓缓存、批次或每日快照；同一次列表请求内，相同目标范围和账户的规则复用展开结果，避免重复回放。展开失败也仅尝试一次，各规则仍保留独立失败载荷和数量占位。缓存不跨请求，新请求仍读取最新持仓并重试之前的失败；列表筛选、翻页及监控开关不改变这一边界。后台轮询和规则试运行仍使用原有行情与快照加载方式。
+
+Web 检测到有效环境规则时始终显示来源提示，即使数据库列表为空或环境规则当前全部被同条件的启用数据库规则覆盖。页面删除、禁用只操作数据库，不修改环境规则；禁用或删除数据库规则后，同条件环境规则可能重新参与轮询。需要停用环境规则时，在实际部署配置中修改 `AGENT_EVENT_ALERT_RULES_JSON` 并重新加载配置。本次不自动迁移配置，也不改变执行、冷却或推送语义。
+
+视觉回归：在 `apps/dsa-web` 运行 `npx playwright test --config playwright.fixture.config.ts`（无需后台或登录口令），使用受控 API 响应验收数据库空列表时的桌面/窄屏提示并生成 `test-results/fixtures/**/alerts-sources-*.png`。此测试验证 UI，不替代后台真实配置加载回归；专题文档没有英文对应版本。
+
 `AGENT_EVENT_ALERT_RULES_JSON` 作为 legacy 运行时规则来源继续保留，不自动迁移、删除、覆盖或改写用户已有 `.env` / Web 配置。
 
 - 空字符串或空数组表示未配置 legacy 规则；schedule 模式仍会注册后台 worker，以便后续 API 创建的持久化 active rules 无需重启即可被评估。
@@ -181,6 +189,7 @@ P3 在 WebUI 中新增 `/alerts` 告警中心入口，让用户不需要直接�
   - `price_change_percent`：`direction` 为 `up` / `down`，并填写 `change_pct`。
   - `volume_spike`：填写 `multiplier`。
 - 规则操作支持启用、停用、删除和一次性 dry-run 测试。
+- 创建、启用、停用或删除规则期间切换筛选或分页，操作完成后的列表刷新会使用当前筛选条件；创建成功仍会返回当前筛选下的第一页。
 - dry-run 测试只展示 `AlertRuleTestResponse` 已声明字段：规则 ID、状态、是否触发、观察值和消息；`threshold`、`data_source`、`data_timestamp` 等扩展诊断字段需要后端 schema 明确暴露后再展示。
 - 触发历史展示 P2 worker 已写入的 `triggered`、`skipped`、`degraded`、`failed` 记录；正常 `not_triggered` 仍不会写入历史。
 - 通知尝试区域只查询现有 `GET /api/v1/alerts/notifications`；由于 P2 运行时不写 per-channel notification attempt，当前通常显示“暂无通知尝试记录”空态，不把触发状态推断为通知投递结果。
@@ -338,10 +347,13 @@ P6 不做：
 - `AlertTriggerItem` 保留 `diagnostics` 字符串，并新增派生字段 `market_phase_summary`、`analysis_context_pack_overview`、`analysis_visibility_source`。
 - 真实 `status=triggered` 的 worker 记录会在 JSON diagnostics 中合并 sibling key `analysis_visibility`，包含 `market_phase_summary`、`analysis_context_pack_overview`、`source`。旧纯文本 diagnostics 保留原文，API 派生字段返回 `null`，source 返回 `legacy_text`。
 - `analysis_visibility_source` 取值为 `alert_trigger_market_context`、`analysis_history_snapshot`、`evaluator_snapshot`、`legacy_text` 或 `null`。
-- symbol 目标使用 `get_market_for_stock(normalize_stock_code(effective_target))` 构造触发时 phase；`target_scope=market` 直接用 `normalize_market_region(target)`，不会把 `cn|hk|us` 当作股票代码推断；账户级无法唯一定位市场时允许 summary 落为 `unknown`。
+- symbol 目标使用 `get_market_for_stock(normalize_stock_code(effective_target))` 构造触发时 phase；`target_scope=market` 直接用 `normalize_market_region(target)`，不会把 `cn|hk|us|jp|kr` 当作股票代码推断；账户级无法唯一定位市场时允许 summary 落为 `unknown`。
 - `analysis_context_pack_overview` 只来自 evaluator 已带 overview 或最近 30 天内的历史 snapshot。最近历史查询复用历史服务的代码变体候选，并以 best-effort + 批内短缓存方式执行；缺失或解析失败返回 `null`，不伪造 pack。
 - 告警通知只输出公开摘要：阶段标签、trigger source、partial-bar warning、数据质量等级和前两条 limitations。通知不得输出 raw context pack、Prompt、新闻正文、完整 diagnostics JSON、webhook URL、token 或持仓敏感细节。
 - Web 告警历史展示 phase badge、数据质量等级和 limitations 空态；旧触发记录缺少公开摘要时不影响列表读取。
+- #1390 P6 进一步复用 `DecisionSignal`：股票级真实触发会优先关联同标的 latest active 信号，并把低敏 `decision_signal_summary` 写入 diagnostics；无 active 信号时只创建最小 `source_type=alert/action=alert` 信号。`trace_id=alert-rule-<hash>` 只用于同源重试的 best-effort 幂等去重，不覆盖 active 信号；新建告警信号不写 `market_phase`，避免同一规则跨阶段重复创建。`market`、`portfolio_account`、overflow 或无法解析为具体股票的触发不会创建个股信号。
+
+DecisionSignal 字段、脱敏、迁移与回滚边界见 [DecisionSignal 决策信号专题](decision-signals.md)。
 
 #1386 P7 的用户边界：告警联动只解释触发时已经可公开的阶段和数据质量摘要，不会自动发起轻量 LLM 盘中分析，也不会新增告警表、规则类型、环境变量或 migration。需要阶段化分析时，仍应通过分析 API / Web 手动分析入口触发；告警通知只保留阶段标签、trigger source、partial-bar warning、数据质量等级和前两条 limitations。
 
@@ -355,10 +367,10 @@ P7 在现有 Alert API、Web 告警中心和 `src/services/alert_worker.py` 中�
 
 | `target_scope` | `target` | 允许的 `alert_type` | 参数 | 触发语义 |
 | --- | --- | --- | --- | --- |
-| `market` | `cn` / `hk` / `us` | `market_light_status` | `statuses=["red","yellow"]`，只允许 `red/yellow`，默认 `["red","yellow"]` | 当前 `MarketLightSnapshot.status` 命中列表时触发 |
-| `market` | `cn` / `hk` / `us` | `market_light_score_drop` | `min_drop > 0` | `prev.score - current.score >= min_drop`，且 `prev.trade_date < current.trade_date` |
+| `market` | `cn` / `hk` / `us` / `jp` / `kr` | `market_light_status` | `statuses=["red","yellow"]`，只允许 `red/yellow`，默认 `["red","yellow"]` | 当前 `MarketLightSnapshot.status` 命中列表时触发 |
+| `market` | `cn` / `hk` / `us` / `jp` / `kr` | `market_light_score_drop` | `min_drop > 0` | `prev.score - current.score >= min_drop`，且 `prev.trade_date < current.trade_date` |
 
-scope/type 校验是双向约束：`target_scope=market` 只能使用两类 Market Light 规则；`market_light_*` 规则也只能使用 `target_scope=market`。`target` 会 `strip().lower()` 后严格限定为 `cn|hk|us`，非法 target 返回 HTTP 400 + `validation_error`。
+scope/type 校验是双向约束：`target_scope=market` 只能使用两类 Market Light 规则；`market_light_*` 规则也只能使用 `target_scope=market`。`target` 会 `strip().lower()` 后严格限定为 `cn|hk|us|jp|kr`，非法 target 返回 HTTP 400 + `validation_error`。
 
 ### `MarketLightSnapshot` 契约
 
@@ -457,3 +469,7 @@ worker 会把 `triggered`、`skipped`、`degraded`、`failed` 写入 `alert_trig
 - P5 新增 Alert API/Web 支持的技术指标规则。最小回滚方式是 revert P5 PR；已创建的 P5 `alert_rules` 记录不会自动删除，旧代码会在 worker 加载阶段 skip unsupported `alert_type`，不影响 legacy 三类规则执行。如需清理，需要维护者确认后手动删除相关规则记录。
 - P6 新增 Alert API/Web 支持的 watchlist、portfolio holdings 与 portfolio account 规则。最小回滚方式是 revert P6 PR；没有新表或迁移，已创建的 P6 `alert_rules` 会保留。回滚前建议 disable/delete 非 `single_symbol` 的 P6 规则；否则旧 worker 可能把 `watchlist` / `portfolio_holdings` 的父级 `target` 当作股票代码评估并产生 failed/skipped 噪声，portfolio 专用 `alert_type` 会在 worker 加载阶段被 skip。
 - P7 新增 Alert API/Web 支持的 `market` 规则和大盘复盘 `market_light_snapshots` 历史快照。最小回滚方式是 revert P7 PR；没有新表或迁移，已创建的 P7 `alert_rules` 会保留。回滚前建议 disable/delete `target_scope=market` 规则；旧 worker 会 skip unsupported `market_light_*` 类型或因 scope/type 不识别产生配置噪声。
+
+### 页面来源提示的视觉验证
+
+运行 `cd apps/dsa-web && npx playwright install chromium && npx playwright test --config playwright.fixture.config.ts`，使用真实告警页面与拦截 API fixture，无需后台或登录口令。空数据库仍显示 2 条有效环境配置、1 条去重后规则及停用边界；覆盖 1440px 桌面和 390px 窄屏，无横向溢出。截图保存在 `apps/dsa-web/test-results/fixtures/`，由 web-gate 上传 `web-ui-evidence-<head SHA>` artifact，不入库。
