@@ -131,6 +131,7 @@ DEFAULT_ETF_ROTATION_SAFE_ASSET = "511880"
 ANSPIRE_LLM_BASE_URL_DEFAULT = "https://open-gateway.anspire.cn/v6"
 ANSPIRE_LLM_MODEL_DEFAULT = "Doubao-Seed-2.0-lite"
 MODELFLARE_LLM_BASE_URL_DEFAULT = "https://modelflare.dev/v1"
+MODELFLARE_LLM_MODEL_DEFAULT = "openai/gpt-6.1-sol"
 
 
 def _has_ntfy_topic_endpoint(value: Optional[str]) -> bool:
@@ -520,11 +521,11 @@ def resolve_llm_channel_models(
     primary_model: str = "",
     fallback_models: str = "",
 ) -> List[str]:
-    """Reuse explicit OpenAI routes for a single Modelflare channel without a model list."""
+    """Resolve explicit routes or the default for a single Modelflare channel."""
     if models:
         return models
     names = [name.strip().lower() for name in channel_names.split(',') if name.strip()]
-    primary = primary_model.strip()
+    primary = primary_model.strip() or MODELFLARE_LLM_MODEL_DEFAULT
     if (names != ["modelflare"] or channel_name.strip().lower() != "modelflare"
             or not primary.startswith("openai/") or not primary[7:].strip()):
         return []

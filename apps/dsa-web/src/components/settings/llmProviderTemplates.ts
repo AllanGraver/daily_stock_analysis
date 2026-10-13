@@ -9,6 +9,7 @@ export type LLMProviderCapability =
 
 export const MODELFLARE_APP_REGISTRATION_URL =
   'https://modelflare.dev/sign-up?utm_source=daily_stock_analysis&utm_campaign=app';
+export const MODELFLARE_DEFAULT_MODEL = 'gpt-6.1-sol';
 
 export interface LLMProviderTemplate {
   channelId: string;
@@ -57,7 +58,7 @@ export const LLM_PROVIDER_TEMPLATES: LLMProviderTemplate[] = [
     label: 'Modelflare（聚合平台）',
     protocol: 'openai',
     baseUrl: 'https://modelflare.dev/v1',
-    placeholderModels: 'gpt-5.6-sol',
+    placeholderModels: MODELFLARE_DEFAULT_MODEL,
     capabilities: ['openai-compatible', 'aggregator', 'model-discovery'],
     configHint:
       'API Key 的路由分组需支持所选模型；模型 ID 请以控制台或获取模型的结果为准。modelflare 渠道的 Base URL 留空时使用默认 /v1 地址，可按需覆盖，不额外拼接 /chat/completions。',

@@ -393,7 +393,6 @@ def test_modelflare_minimal_channel_is_available_for_status_and_smoke() -> None:
     effective_map = {
         "LLM_CHANNELS": "modelflare",
         "LLM_MODELFLARE_API_KEY": "sk-test",
-        "LLM_MODELFLARE_MODELS": "account-model",
     }
     service = GenerationBackendStatusService(
         effective_map=effective_map,
@@ -402,7 +401,7 @@ def test_modelflare_minimal_channel_is_available_for_status_and_smoke() -> None:
     assert service.get_status()["primary"]["available"] is True
     assert service.smoke_test(mode="json")["success"] is True
     config = _CapturingAnalyzer.configs[-1]
-    assert config.litellm_model == "openai/account-model"
+    assert config.litellm_model == "openai/gpt-6.1-sol"
     assert config.llm_model_list[0]["litellm_params"]["api_base"] == "https://modelflare.dev/v1"
     assert "LLM_MODELFLARE_BASE_URL" not in effective_map
 

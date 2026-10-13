@@ -615,7 +615,7 @@ describe('LLMChannelEditor', () => {
     await screen.findByRole('button', { name: /Modelflare（聚合平台）/i });
     expect(screen.getByLabelText('渠道名称')).toHaveValue('modelflare');
     expect(screen.getByLabelText('Base URL')).toHaveValue('https://modelflare.dev/v1');
-    expect(screen.getByLabelText('模型（逗号分隔）')).toHaveValue('gpt-5.6-sol');
+    expect(screen.getByLabelText('模型（逗号分隔）')).toHaveValue('gpt-6.1-sol');
     expect(screen.getByLabelText('API Key')).toHaveValue('');
     expect(screen.getByRole('link', { name: 'Modelflare 专属注册' })).toHaveAttribute(
       'href', 'https://modelflare.dev/sign-up?utm_source=daily_stock_analysis&utm_campaign=app',
@@ -630,6 +630,15 @@ describe('LLMChannelEditor', () => {
     ]} configVersion="v1" maskToken="******" onSaved={() => {}} />);
     fireEvent.click(await screen.findByRole('button', { name: /Modelflare（聚合平台）/i }));
     expect(screen.getByLabelText('模型（逗号分隔）')).toHaveValue('openai/account-model,openai/fallback-model');
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('shows the Modelflare default without requiring a primary model or auto-saving', async () => {
+    render(<LLMChannelEditor items={[
+      { key: 'LLM_CHANNELS', value: 'modelflare' },
+    ]} configVersion="v1" maskToken="******" onSaved={() => {}} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Modelflare（聚合平台）/i }));
+    expect(screen.getByLabelText('模型（逗号分隔）')).toHaveValue('openai/gpt-6.1-sol');
     expect(update).not.toHaveBeenCalled();
   });
 

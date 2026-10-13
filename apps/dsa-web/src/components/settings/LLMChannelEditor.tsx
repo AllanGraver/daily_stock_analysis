@@ -10,6 +10,7 @@ import {
   LLM_PROVIDER_CAPABILITY_LABELS,
   LLM_PROVIDER_TEMPLATES,
   MODELFLARE_APP_REGISTRATION_URL,
+  MODELFLARE_DEFAULT_MODEL,
   MODEL_PLACEHOLDERS_BY_PROTOCOL,
   getProviderTemplate,
   isKnownProviderTemplate,
@@ -1472,7 +1473,8 @@ function parseChannelsFromItems(
   return channelNames.map((name, index) => {
     const upperName = name.toUpperCase();
     const baseUrl = itemMap.get(`LLM_${upperName}_BASE_URL`) || '';
-    const primaryModel = (itemMap.get('LITELLM_MODEL') || '').trim();
+    const primaryModel = (itemMap.get('LITELLM_MODEL') || '').trim()
+      || `openai/${MODELFLARE_DEFAULT_MODEL}`;
     const inheritedModels = channelNames.length === 1 && upperName === 'MODELFLARE'
       && primaryModel.startsWith('openai/') && primaryModel.slice(7).trim()
       ? [...new Set([primaryModel, ...splitModels(itemMap.get('LITELLM_FALLBACK_MODELS') || '')]

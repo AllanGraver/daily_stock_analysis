@@ -2907,7 +2907,6 @@ class SystemConfigServiceTestCase(unittest.TestCase):
         self._rewrite_env(
             "LLM_CHANNELS=modelflare",
             "LLM_MODELFLARE_API_KEY=sk-test",
-            "LLM_MODELFLARE_MODELS=account-model",
             "STOCK_LIST=600519",
         )
         before = self.env_path.read_text(encoding="utf-8")
@@ -2917,7 +2916,7 @@ class SystemConfigServiceTestCase(unittest.TestCase):
             models = self.service._collect_llm_channel_models_from_map(self.manager.read_config_map())
         self.assertTrue(validation["valid"], validation["issues"])
         self.assertTrue(status["is_complete"])
-        self.assertEqual(models, ["openai/account-model"])
+        self.assertEqual(models, ["openai/gpt-6.1-sol"])
         self.assertEqual(self.env_path.read_text(encoding="utf-8"), before)
 
     @patch("litellm.completion")

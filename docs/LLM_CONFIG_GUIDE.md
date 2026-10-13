@@ -253,14 +253,13 @@ ANSPIRE_API_KEYS=sk-xxxxxxxxxxxxxxxx
 ```env
 LLM_CHANNELS=modelflare
 LLM_MODELFLARE_API_KEY=sk-xxx
-LITELLM_MODEL=openai/gpt-5.6-sol
 ```
 
-只声明 `modelflare` 一个渠道且未填渠道模型列表时，后端复用 `LITELLM_MODEL` 和带 `openai/` 前缀的备用模型；主模型使用 `openai/<模型名>`。显式 `LLM_MODELFLARE_MODELS` 优先，多渠道仍需分别声明模型。推导不改写已保存配置或模型选择。
+只声明 `modelflare` 一个渠道且未填渠道模型列表时，未配置主模型时默认使用 `openai/gpt-6.1-sol`；配置主模型后，后端复用 `LITELLM_MODEL` 和带 `openai/` 前缀的备用模型；主模型使用 `openai/<模型名>`。显式 `LLM_MODELFLARE_MODELS` 优先，多渠道仍需分别声明模型。推导不改写已保存配置或模型选择。
 
-渠道名为 `modelflare` 时，未填写或留空的接入地址自动使用 `https://modelflare.dev/v1`；显式 `LLM_MODELFLARE_BASE_URL` 优先。该地址默认识别为 `openai` 协议，接口默认为 `chat_completions`；未设置 `LITELLM_MODEL` 时使用首个渠道模型。模型仍需明确填写并按账号权限选择，不自动添加模型或 legacy Key。
+渠道名为 `modelflare` 时，未填写或留空的接入地址自动使用 `https://modelflare.dev/v1`；显式 `LLM_MODELFLARE_BASE_URL` 优先。该地址默认识别为 `openai` 协议，接口默认为 `chat_completions`；未设置 `LITELLM_MODEL` 时使用首个渠道模型。默认模型仍需账号有访问权限，不自动补充 API Key。
 
-`gpt-5.6-sol` 是官方快速开始中的模型示例。请按账号权限选择实际可用模型，并通过 Web「获取模型」和「测试连接」确认；Base URL 不要附加 `/chat/completions`。Modelflare 是新建渠道的首选模板，已保存的渠道和主模型不会因模板顺序调整而改变。Anspire Search 仍通过 `ANSPIRE_API_KEYS` 独立配置。
+`gpt-6.1-sol` 是本项目的 Modelflare 默认模型。请按账号权限选择实际可用模型，并通过 Web「获取模型」和「测试连接」确认；Base URL 不要附加 `/chat/completions`。Modelflare 是新建渠道的首选模板，已保存的渠道和主模型不会因模板顺序调整而改变。Anspire Search 仍通过 `ANSPIRE_API_KEYS` 独立配置。
 
 客户端快速添加按钮及渠道说明中的「Modelflare 专属注册」都使用 app UTM，README 使用 github UTM。新建渠道尚未填写 Key，或主模型/备用模型不属于当前启用渠道时，状态预览会提示「配置需要调整」并列出具体字段；补填 Key、选择可用模型或清空无效的备用模型后重试，预览不会自动改写已保存配置。
 

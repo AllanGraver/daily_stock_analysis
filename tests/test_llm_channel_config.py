@@ -51,6 +51,7 @@ class LLMChannelConfigTestCase(unittest.TestCase):
         with patch.dict(os.environ, {**base, "LLM_MODELFLARE_MODELS": "explicit-model"}, clear=True):
             self.assertEqual(Config._parse_llm_channels("modelflare")[0]["models"], ["openai/explicit-model"])
         for names, primary in [("modelflare,other", "openai/account-model"),
+                               ("modelflare,other", ""),
                                ("modelflare", "anthropic/account-model"),
                                ("modelflare", "router-alias")]:
             with self.subTest(names=names, primary=primary), patch.dict(
@@ -78,13 +79,26 @@ class LLMChannelConfigTestCase(unittest.TestCase):
                 self.assertEqual(config.llm_channels[0]["api_surface"], "chat_completions")
                 self.assertEqual(config.llm_model_list[0]["litellm_params"]["api_base"], expected_url)
 
-    def test_modelflare_default_does_not_supply_credentials_or_models(self) -> None:
-        for fields in ({}, {"LLM_MODELFLARE_API_KEY": "sk-test"},
+    def test_modelflare_default_does_not_supply_credentials_or_enable_disabled_channels(self) -> None:
+        for fields in ({},
                        {"LLM_MODELFLARE_MODELS": "account-model"},
                        {"LLM_MODELFLARE_API_KEY": "sk-test", "LLM_MODELFLARE_MODELS": "account-model",
                         "LLM_MODELFLARE_ENABLED": "false"}):
             with self.subTest(fields=fields), patch.dict(os.environ, fields, clear=True):
                 self.assertEqual(Config._parse_llm_channels("modelflare"), [])
+
+    @patch("src.config.setup_env")
+    @patch.object(Config, "_parse_litellm_yaml", return_value=[])
+    def test_modelflare_two_field_config_uses_default_without_persisting(self, _yaml, _setup) -> None:
+        for primary in (None, "   "):
+            env = {"LLM_CHANNELS": "modelflare", "LLM_MODELFLARE_API_KEY": "sk-test"}
+            if primary is not None:
+                env["LITELLM_MODEL"] = primary
+            with self.subTest(primary=primary), patch.dict(os.environ, env, clear=True):
+                config = Config._load_from_env()
+                self.assertEqual(dict(os.environ), env)
+            self.assertEqual(config.litellm_model, "openai/gpt-6.1-sol")
+            self.assertEqual(config.llm_channels[0]["models"], ["openai/gpt-6.1-sol"])
 
     @patch("src.config.setup_env")
     @patch.object(Config, "_parse_litellm_yaml", return_value=[])

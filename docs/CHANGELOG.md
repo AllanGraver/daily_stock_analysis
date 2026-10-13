@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- [改进] 单 Modelflare 渠道未填写主模型及渠道模型列表时默认使用 gpt-6.1-sol，只需渠道名与 API Key；三语 README 横幅恢复 720px、图片与文案紧接显示，并在 Modelflare 与 SerpAPI 之间添加分隔线。
+
 - [改进] 单 Modelflare 渠道可直接复用现有 LITELLM_MODEL 与 OpenAI 备用模型，后端统一推导模型声明，显式列表及多渠道规则保持优先；三语 README 赞助文案合为重点单段。
 - [修复] 模型设置预览、冒烟及保存的配置校验失败显示具体字段与修正提示，避免仅显示笼统请求失败；Modelflare 渠道说明补充客户端专属注册链接，与快速添加按钮共用 app UTM。
 - [改进] 新增首位 Modelflare LLM 渠道预设及条件注册链接，统一后端默认接入地址、简化三项配置，同步三语 README 紧凑赞助区（默认展开、可折叠，保留运营主体、模型范围、缓存补偿及充值优惠）和配置指南，保留 Anspire LLM 兼容、新闻搜索及 SerpAPI 赞助入口。

@@ -246,14 +246,13 @@ If you prefer modifying files, configuring this in the `.env` file is also very 
 ```env
 LLM_CHANNELS=modelflare
 LLM_MODELFLARE_API_KEY=sk-xxx
-LITELLM_MODEL=openai/gpt-5.6-sol
 ```
 
-When `modelflare` is the only declared channel and its model list is blank, the backend reuses `LITELLM_MODEL` and OpenAI-prefixed fallback routes. Use `openai/<model>` for the primary model. An explicit channel list takes precedence; multi-channel setups must declare each channel's models. Inference does not rewrite saved configuration or change model selection.
+When `modelflare` is the only declared channel and its model list is blank, the backend defaults to `openai/gpt-6.1-sol` if no primary model is configured; otherwise it reuses `LITELLM_MODEL` and OpenAI-prefixed fallback routes. Use `openai/<model>` for the primary model. An explicit channel list takes precedence; multi-channel setups must declare each channel's models. Inference does not rewrite saved configuration or change model selection.
 
-For the channel named `modelflare`, an omitted or blank Base URL defaults to `https://modelflare.dev/v1`; an explicit `LLM_MODELFLARE_BASE_URL` takes precedence. Protocol defaults to `openai` for this endpoint and the API surface to `chat_completions`. When `LITELLM_MODEL` is unset, the first channel model is selected. Keep the model explicit and choose one your key can access; no model or legacy key is added automatically.
+For the channel named `modelflare`, an omitted or blank Base URL defaults to `https://modelflare.dev/v1`; an explicit `LLM_MODELFLARE_BASE_URL` takes precedence. Protocol defaults to `openai` for this endpoint and the API surface to `chat_completions`. When `LITELLM_MODEL` is unset, the first channel model is selected. The default model still requires account access; no API key is supplied automatically.
 
-`gpt-5.6-sol` is the official quickstart example. Select models available to your account and confirm them with the Web editor's "Discover models" and "Test connection" actions; do not append `/chat/completions` to the Base URL. Modelflare is the initially selected template for new channels. Reordering templates does not change saved channels or primary models. Anspire Search continues to use `ANSPIRE_API_KEYS` independently.
+`gpt-6.1-sol` is this project's Modelflare default. Select models available to your account and confirm them with the Web editor's "Discover models" and "Test connection" actions; do not append `/chat/completions` to the Base URL. Modelflare is the initially selected template for new channels. Reordering templates does not change saved channels or primary models. Anspire Search continues to use `ANSPIRE_API_KEYS` independently.
 
 Both the client's quick-add registration button and the exclusive registration link in channel details use the app UTM; README links use the github UTM. If a new channel has no key yet, or the primary/fallback model is not declared by an enabled channel, status preview shows the affected configuration fields. Supply the key, select available models or clear invalid fallback selections, then retry. Preview does not rewrite saved settings.
 

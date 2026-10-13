@@ -34,11 +34,10 @@ def test_screening_modelflare_channel_uses_shared_default_endpoint() -> None:
     with patch.dict(os.environ, {
         "LLM_CHANNELS": "modelflare",
         "LLM_MODELFLARE_API_KEY": "sk-test",
-        "LLM_MODELFLARE_MODELS": "account-model",
     }, clear=True):
         channels = _parse_llm_channels_env()
     assert channels[0]["base_url"] == "https://modelflare.dev/v1"
-    assert channels[0]["models"] == ["openai/account-model"]
+    assert channels[0]["models"] == ["openai/gpt-6.1-sol"]
 
 
 def test_screening_modelflare_inherits_existing_global_model() -> None:
