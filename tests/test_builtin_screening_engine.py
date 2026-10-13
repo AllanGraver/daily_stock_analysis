@@ -28,6 +28,19 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 SCREENING_ROOT = REPO_ROOT / "src" / "services" / "screening"
 
 
+def test_screening_modelflare_channel_uses_shared_default_endpoint() -> None:
+    from src.services.screening.config import _parse_llm_channels_env
+
+    with patch.dict(os.environ, {
+        "LLM_CHANNELS": "modelflare",
+        "LLM_MODELFLARE_API_KEY": "sk-test",
+        "LLM_MODELFLARE_MODELS": "account-model",
+    }, clear=True):
+        channels = _parse_llm_channels_env()
+    assert channels[0]["base_url"] == "https://modelflare.dev/v1"
+    assert channels[0]["models"] == ["openai/account-model"]
+
+
 def test_screening_engine_is_collected_from_the_internal_package() -> None:
     requirements = (REPO_ROOT / "requirements.txt").read_text(encoding="utf-8").lower()
     dockerfile = (REPO_ROOT / "docker" / "Dockerfile").read_text(encoding="utf-8")

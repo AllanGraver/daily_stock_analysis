@@ -66,7 +66,7 @@ Go to your forked repo → `Settings` → `Secrets and variables` → `Actions` 
 | `OPENAI_MODEL` | Model name (e.g., `deepseek-v4-flash`) | Optional |
 | `ANSPIRE_API_KEYS` | Legacy compatibility entry for existing Anspire search and LLM shared-key setups; model access depends on account permissions | Optional |
 
-> *Note: Configure at least one model key or channel. For Modelflare, set `LLM_CHANNELS=modelflare`, `LLM_MODELFLARE_PROTOCOL=openai`, `LLM_MODELFLARE_BASE_URL=https://modelflare.dev/v1`, and `LLM_MODELFLARE_MODELS=gpt-5.6-sol`; see the complete [LLM Config Guide example](LLM_CONFIG_GUIDE_EN.md#example-modelflare). Available models depend on your account. Startup validation reports a clear error when no usable AI model key or model channel is configured.
+> *Note: Configure at least one model key or channel. For Modelflare, set `LLM_CHANNELS=modelflare`, your `LLM_MODELFLARE_API_KEY`, and `LLM_MODELFLARE_MODELS=gpt-5.6-sol` (or another available model); the endpoint defaults to `https://modelflare.dev/v1`; see the complete [LLM Config Guide example](LLM_CONFIG_GUIDE_EN.md#example-modelflare). Available models depend on your account. Startup validation reports a clear error when no usable AI model key or model channel is configured.
 
 #### Notification Channels (Multiple can be configured, all will receive notifications)
 
@@ -237,9 +237,9 @@ Default schedule: Every weekday at **18:00 (Beijing Time)** automatic execution.
 | `LITELLM_FALLBACK_MODELS` | Fallback models, comma-separated | - | No |
 | `LLM_CHANNELS` | Channel names (comma-separated), use with `LLM_{NAME}_*`, see [LLM Config Guide](LLM_CONFIG_GUIDE_EN.md) | - | No |
 | `LLM_MODELFLARE_API_KEY` | Modelflare channel key (use `LLM_MODELFLARE_API_KEYS` for multiple keys); Actions reads it from Secrets only | - | For Modelflare |
-| `LLM_MODELFLARE_PROTOCOL` | Modelflare channel protocol; set to `openai` | - | For Modelflare |
+| `LLM_MODELFLARE_PROTOCOL` | Modelflare channel protocol; inferred as `openai` with the default endpoint | `openai` | No |
 | `LLM_MODELFLARE_API_SURFACE` | Modelflare API surface; the quickstart example uses `chat_completions` | `chat_completions` | No |
-| `LLM_MODELFLARE_BASE_URL` | Modelflare endpoint; set to `https://modelflare.dev/v1` | - | For Modelflare |
+| `LLM_MODELFLARE_BASE_URL` | Modelflare endpoint; explicit values override the default | `https://modelflare.dev/v1` | No |
 | `LLM_MODELFLARE_MODELS` | Comma-separated model list, such as `gpt-5.6-sol`; use models available to your account | - | For Modelflare |
 | `LLM_HERMES_API_KEY` | Single API key for the reserved Hermes local HTTP generation channel; provide it through `.env`, runtime config, or Secrets only | - | Required for Hermes |
 | `LLM_HERMES_BASE_URL` | Hermes local loopback `/v1` endpoint; defaults to `http://127.0.0.1:8642/v1`; remote endpoints are not supported | `http://127.0.0.1:8642/v1` | No |

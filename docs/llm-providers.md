@@ -66,13 +66,11 @@ Phase 6a Tool Surface 是 AgentBackend 的唯一内部工具面：统一 DSA 工
 
 ```env
 LLM_CHANNELS=modelflare
-LLM_MODELFLARE_PROTOCOL=openai
-LLM_MODELFLARE_API_SURFACE=chat_completions
-LLM_MODELFLARE_BASE_URL=https://modelflare.dev/v1
 LLM_MODELFLARE_API_KEY=sk-xxx
 LLM_MODELFLARE_MODELS=gpt-5.6-sol
-LITELLM_MODEL=openai/gpt-5.6-sol
 ```
+
+渠道名为 `modelflare` 时，未填写或留空的接入地址自动使用 `https://modelflare.dev/v1`；显式 `LLM_MODELFLARE_BASE_URL` 优先。该地址默认识别为 `openai` 协议，接口默认为 `chat_completions`；未设置 `LITELLM_MODEL` 时使用首个渠道模型。模型仍需明确填写并按账号权限选择，不自动添加模型或 legacy Key。
 
 `gpt-5.6-sol` 是官方快速开始中的模型示例；实际模型列表与可用性以账号权限、控制台和 Web 设置页「测试连接」结果为准。渠道模板仅决定新建配置的初始值，不会改写已保存的渠道、主模型或 fallback。
 

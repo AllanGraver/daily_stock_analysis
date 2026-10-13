@@ -32,6 +32,48 @@ from src.services.system_config_service import SystemConfigService
 class LLMChannelConfigTestCase(unittest.TestCase):
     @patch("src.config.setup_env")
     @patch.object(Config, "_parse_litellm_yaml", return_value=[])
+    def test_modelflare_channel_defaults_and_explicit_overrides(self, _yaml, _setup) -> None:
+        for base_url in (None, "   ", "https://custom.example/v1"):
+            with self.subTest(base_url=base_url):
+                env = {
+                    "LLM_CHANNELS": "Modelflare",
+                    "LLM_MODELFLARE_API_KEY": "sk-test",
+                    "LLM_MODELFLARE_MODELS": "account-model",
+                }
+                if base_url is not None:
+                    env["LLM_MODELFLARE_BASE_URL"] = base_url
+                with patch.dict(os.environ, env, clear=True):
+                    config = Config._load_from_env()
+                expected_url = (base_url or "").strip() or "https://modelflare.dev/v1"
+                self.assertEqual(config.llm_models_source, "llm_channels")
+                self.assertEqual(config.litellm_model, "openai/account-model")
+                self.assertEqual(config.llm_channels[0]["api_surface"], "chat_completions")
+                self.assertEqual(config.llm_model_list[0]["litellm_params"]["api_base"], expected_url)
+
+    def test_modelflare_default_does_not_supply_credentials_or_models(self) -> None:
+        for fields in ({}, {"LLM_MODELFLARE_API_KEY": "sk-test"},
+                       {"LLM_MODELFLARE_MODELS": "account-model"},
+                       {"LLM_MODELFLARE_API_KEY": "sk-test", "LLM_MODELFLARE_MODELS": "account-model",
+                        "LLM_MODELFLARE_ENABLED": "false"}):
+            with self.subTest(fields=fields), patch.dict(os.environ, fields, clear=True):
+                self.assertEqual(Config._parse_llm_channels("modelflare"), [])
+
+    @patch("src.config.setup_env")
+    @patch.object(Config, "_parse_litellm_yaml", return_value=[])
+    def test_modelflare_default_preserves_explicit_model_selection(self, _yaml, _setup) -> None:
+        with patch.dict(os.environ, {
+            "LLM_CHANNELS": "modelflare",
+            "LLM_MODELFLARE_API_KEY": "sk-test",
+            "LLM_MODELFLARE_MODELS": "first-model,chosen-model",
+            "LITELLM_MODEL": "openai/chosen-model",
+            "LITELLM_FALLBACK_MODELS": "openai/first-model",
+        }, clear=True):
+            config = Config._load_from_env()
+        self.assertEqual(config.litellm_model, "openai/chosen-model")
+        self.assertEqual(config.litellm_fallback_models, ["openai/first-model"])
+
+    @patch("src.config.setup_env")
+    @patch.object(Config, "_parse_litellm_yaml", return_value=[])
     def test_anspire_key_enables_openai_compatible_legacy_model(self, _mock_parse_yaml, _mock_setup_env) -> None:
         env = {
             "ANSPIRE_API_KEYS": "sk-anspire-test-value",

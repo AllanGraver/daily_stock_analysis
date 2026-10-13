@@ -23,6 +23,7 @@ from src.config import (
     normalize_llm_channel_api_surface,
     normalize_llm_channel_model,
     parse_env_bool,
+    resolve_llm_channel_base_url,
     resolve_llm_channel_protocol,
 )
 from src.llm.backend_registry import (
@@ -842,7 +843,7 @@ class GenerationBackendStatusService:
             if not parse_env_bool(enabled_raw, default=True):
                 continue
 
-            base_url = (effective_map.get(f"{prefix}_BASE_URL") or "").strip() or None
+            base_url = resolve_llm_channel_base_url(name, effective_map.get(f"{prefix}_BASE_URL")) or None
             if lower == "anspire" and not base_url:
                 base_url = (effective_map.get("ANSPIRE_LLM_BASE_URL") or ANSPIRE_LLM_BASE_URL_DEFAULT).strip() or None
             protocol_raw = (effective_map.get(f"{prefix}_PROTOCOL") or "").strip()

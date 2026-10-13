@@ -130,6 +130,7 @@ DEFAULT_ETF_ROTATION_SAFE_ASSET = "511880"
 # These are compatibility examples; actual availability should be validated by Anspire console/model entitlement.
 ANSPIRE_LLM_BASE_URL_DEFAULT = "https://open-gateway.anspire.cn/v6"
 ANSPIRE_LLM_MODEL_DEFAULT = "Doubao-Seed-2.0-lite"
+MODELFLARE_LLM_BASE_URL_DEFAULT = "https://modelflare.dev/v1"
 
 
 def _has_ntfy_topic_endpoint(value: Optional[str]) -> bool:
@@ -499,6 +500,16 @@ def apply_litellm_api_surface(model: str, api_surface: Optional[str]) -> str:
     if remainder.startswith("responses/"):
         return normalized_model
     return f"{provider}/responses/{remainder}"
+
+
+def resolve_llm_channel_base_url(channel_name: str, base_url: Optional[str]) -> str:
+    """Apply named-channel endpoint defaults without changing explicit configuration."""
+    explicit = (base_url or "").strip()
+    if explicit:
+        return explicit
+    if channel_name.strip().lower() == "modelflare":
+        return MODELFLARE_LLM_BASE_URL_DEFAULT
+    return ""
 
 
 def resolve_llm_channel_protocol(
@@ -2470,7 +2481,9 @@ class Config:
             ch_lower = ch_name.lower()
             ch_upper = ch_name.upper()
 
-            base_url = os.getenv(f'LLM_{ch_upper}_BASE_URL', '').strip() or None
+            base_url = resolve_llm_channel_base_url(
+                ch_name, os.getenv(f'LLM_{ch_upper}_BASE_URL', '')
+            ) or None
             if ch_lower == "anspire" and not base_url:
                 base_url = (
                     os.getenv('ANSPIRE_LLM_BASE_URL') or ANSPIRE_LLM_BASE_URL_DEFAULT

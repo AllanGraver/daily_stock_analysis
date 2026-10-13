@@ -66,7 +66,7 @@ daily_stock_analysis/
 | `OPENAI_MODEL` | 模型名称（如 `gemini-3.1-pro-preview`、`deepseek-v4-flash`、`gpt-5.5`） | 可选 |
 | `ANSPIRE_API_KEYS` | Anspire 搜索与 LLM 共用 Key 的 legacy 兼容入口；模型权限以控制台为准 | 可选 |
 
-> *注：以上模型 Key / 渠道至少配置一个。Modelflare 使用 `LLM_CHANNELS=modelflare`、`LLM_MODELFLARE_PROTOCOL=openai`、`LLM_MODELFLARE_BASE_URL=https://modelflare.dev/v1` 和 `LLM_MODELFLARE_MODELS=gpt-5.6-sol`，完整示例见 [LLM 配置指南](LLM_CONFIG_GUIDE.md#示例modelflare)。实际模型以账号权限为准。启动时配置校验会在缺少可用 AI 模型 Key 或模型渠道时给出明确错误提示。
+> *注：以上模型 Key / 渠道至少配置一个。Modelflare 使用 `LLM_CHANNELS=modelflare`、`LLM_MODELFLARE_API_KEY` 和 `LLM_MODELFLARE_MODELS=gpt-5.6-sol`（或其他可用模型），接入地址默认使用 `https://modelflare.dev/v1`，完整示例见 [LLM 配置指南](LLM_CONFIG_GUIDE.md#示例modelflare)。实际模型以账号权限为准。启动时配置校验会在缺少可用 AI 模型 Key 或模型渠道时给出明确错误提示。
 
 #### 通知渠道配置（可同时配置多个，全部推送）
 
@@ -266,9 +266,9 @@ daily_stock_analysis/
 | `LITELLM_FALLBACK_MODELS` | 备选模型，逗号分隔 | - | 否 |
 | `LLM_CHANNELS` | 渠道名称列表（逗号分隔），配合 `LLM_{NAME}_*` 使用，详见 [LLM 配置指南](LLM_CONFIG_GUIDE.md) | - | 否 |
 | `LLM_MODELFLARE_API_KEY` | Modelflare 渠道 Key（多 Key 可用 `LLM_MODELFLARE_API_KEYS`）；Actions 仅从 Secrets 读取 | - | 选用时 |
-| `LLM_MODELFLARE_PROTOCOL` | Modelflare 渠道协议，设置为 `openai` | - | 选用时 |
+| `LLM_MODELFLARE_PROTOCOL` | Modelflare 渠道协议，默认地址自动识别为 `openai` | `openai` | 否 |
 | `LLM_MODELFLARE_API_SURFACE` | Modelflare 渠道 API Surface，快速开始示例使用 `chat_completions` | `chat_completions` | 否 |
-| `LLM_MODELFLARE_BASE_URL` | Modelflare 接入地址，设置为 `https://modelflare.dev/v1` | - | 选用时 |
+| `LLM_MODELFLARE_BASE_URL` | Modelflare 接入地址，显式配置优先于默认值 | `https://modelflare.dev/v1` | 否 |
 | `LLM_MODELFLARE_MODELS` | 逗号分隔的模型列表，例如 `gpt-5.6-sol`；以账号可用模型为准 | - | 选用时 |
 | `LLM_HERMES_API_KEY` | Hermes reserved 本地 HTTP generation 的单一 API Key；只应来自 `.env`、运行时配置或 Secrets | - | Hermes 使用时必填 |
 | `LLM_HERMES_BASE_URL` | Hermes 本地 loopback `/v1` 地址；默认 `http://127.0.0.1:8642/v1`，不支持远程地址 | `http://127.0.0.1:8642/v1` | 否 |

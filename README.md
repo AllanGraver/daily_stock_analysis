@@ -22,25 +22,16 @@
 
 </div>
 
-## 💖 赞助商 (Sponsors)
+<details open>
+<summary><strong>💖 赞助商 (Sponsors)</strong></summary>
 <div align="center">
-  <p align="center">
-    <a href="https://modelflare.dev/sign-up?utm_source=github&amp;utm_campaign=daily_stock_analysis"><img src="./docs/assets/modelflare_banner.png" alt="Modelflare 稳定、低成本的大模型、图像与视频 API" width="720"></a>
-  </p>
-  <p align="center">
-    <strong>感谢 Modelflare 赞助本项目！</strong><br>
-    稳定、低成本的模型 API，支持 GPT / Claude / Gemini / Grok。<a href="https://modelflare.dev/sign-up?utm_source=github&amp;utm_campaign=daily_stock_analysis">注册使用</a>
-  </p>
-  <details>
-    <summary>查看模型、优惠与缓存保障</summary>
-    <p>由美国 Havenbyte LLC 运营，统一接入热门大模型及 40+ 图像、视频模型。</p>
-    <p>指定 OpenAI 分组提供 65% / 75% / 85% 的每日缓存命中率保障，按已结算用量统计；符合条件的未达标差额退款。用量、缓存率、实际费用与差额退款可在控制台查看。</p>
-    <p>单笔充值 US$20 可解锁 GPT 0.015x；单笔充值 US$50 可解锁 Claude 0.03x。具体模型、分组、充值与保障条件请查看 <a href="https://modelflare.dev/sign-up?utm_source=github&amp;utm_campaign=daily_stock_analysis">Modelflare 平台说明</a>。</p>
-  </details>
-  <p align="center">
+  <p><a href="https://modelflare.dev/sign-up?utm_source=github&amp;utm_campaign=daily_stock_analysis"><img src="./docs/assets/modelflare_banner.png" alt="Modelflare" width="600"></a></p>
+  <p>感谢 Modelflare 赞助！稳定、低成本的 GPT / Claude / Gemini / Grok API。 <a href="https://modelflare.dev/sign-up?utm_source=github&amp;utm_campaign=daily_stock_analysis">注册使用</a> · <a href="https://docs.modelflare.dev/guides/features/cache-guarantee/">缓存保障条件</a></p>
+  <p>
     <a href="https://serpapi.com/github-daily-stock-analysis" target="_blank"><img src="./docs/assets/serpapi_banner_zh.png" alt="轻松抓取搜索引擎上的实时金融新闻数据 - SerpApi" width="300" height="141" style="width: 300px; height: 141px; object-fit: contain;"></a>
   </p>
 </div>
+</details>
 
 
 ## 🖥️ 产品预览
@@ -95,7 +86,7 @@
 | Secret 名称 | 说明 | 必填 |
 |------------|------|:----:|
 | `LLM_CHANNELS` / `LLM_MODELFLARE_API_KEY` | [Modelflare](https://modelflare.dev/sign-up?utm_source=github&utm_campaign=daily_stock_analysis)：设置 `LLM_CHANNELS=modelflare`，并填入 Modelflare API Key | **推荐** |
-| `LLM_MODELFLARE_BASE_URL` / `LLM_MODELFLARE_MODELS` | 按 [LLM 配置指南](docs/LLM_CONFIG_GUIDE.md) 填写接入地址与模型 ID（如 `gpt-5.6-sol`） | 使用 Modelflare 时必填 |
+| `LLM_MODELFLARE_MODELS` | 填写账号可用模型，如 `gpt-5.6-sol`；接入地址自动使用默认值 | 使用 Modelflare 时必填 |
 | `AIHUBMIX_KEY` | [AIHubMix](https://inferera.com/?aff=CfMq) API Key，一Key切换使用全系模型，无需科学上网，本项目可享 10% 优惠 | **推荐** |
 | `GEMINI_API_KEY` | Google Gemini API Key | 可选 |
 | `ANTHROPIC_API_KEY` | Anthropic Claude API Key | 可选 |

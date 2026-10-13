@@ -41,6 +41,7 @@ from src.config import (
     parse_env_bool,
     parse_env_int,
     resolve_news_window_days,
+    resolve_llm_channel_base_url,
     resolve_llm_channel_protocol,
     route_discovered_llm_model,
     setup_env,
@@ -951,6 +952,7 @@ class SystemConfigService:
     ) -> Dict[str, Any]:
         """Discover available models from an OpenAI-compatible `/models` endpoint."""
         channel_name = name.strip() or "channel"
+        base_url = resolve_llm_channel_base_url(channel_name, base_url)
         resolved_secret, secret_error, redaction_values = self._resolve_hermes_saved_secret(
             channel_name=channel_name,
             protocol=protocol,
@@ -1225,6 +1227,7 @@ class SystemConfigService:
         requested_capabilities = self._normalize_llm_capability_checks(capability_checks)
         raw_models = [str(model).strip() for model in models if str(model).strip()]
         channel_name = name.strip() or "channel"
+        base_url = resolve_llm_channel_base_url(channel_name, base_url)
         resolved_api_surface = normalize_llm_channel_api_surface(api_surface)
         generation_stage = "responses" if resolved_api_surface == "responses" else "chat_completion"
         resolved_secret, secret_error, redaction_values = self._resolve_hermes_saved_secret(
@@ -3450,7 +3453,7 @@ class SystemConfigService:
             if not enabled:
                 continue
 
-            base_url = (effective_map.get(f"{prefix}_BASE_URL") or "").strip()
+            base_url = resolve_llm_channel_base_url(name, effective_map.get(f"{prefix}_BASE_URL"))
             if name.lower() == "anspire" and not base_url:
                 base_url = (
                     effective_map.get("ANSPIRE_LLM_BASE_URL")
@@ -4672,7 +4675,7 @@ class SystemConfigService:
             api_surface_value = (effective_map.get(f"{prefix}_API_SURFACE") or "").strip()
             if name.lower() == "anspire" and not protocol_value:
                 protocol_value = "openai"
-            base_url_value = (effective_map.get(f"{prefix}_BASE_URL") or "").strip()
+            base_url_value = resolve_llm_channel_base_url(name, effective_map.get(f"{prefix}_BASE_URL"))
             if name.lower() == "anspire" and not base_url_value:
                 base_url_value = (
                     effective_map.get("ANSPIRE_LLM_BASE_URL")
@@ -4822,7 +4825,7 @@ class SystemConfigService:
             if not enabled:
                 continue
 
-            base_url_value = (effective_map.get(f"{prefix}_BASE_URL") or "").strip()
+            base_url_value = resolve_llm_channel_base_url(name, effective_map.get(f"{prefix}_BASE_URL"))
             if name.lower() == "anspire" and not base_url_value:
                 base_url_value = (
                     effective_map.get("ANSPIRE_LLM_BASE_URL")
@@ -4945,7 +4948,7 @@ class SystemConfigService:
                 enabled_raw = effective_map.get("ANSPIRE_LLM_ENABLED")
             if not parse_env_bool(enabled_raw, default=True):
                 continue
-            base_url_value = (effective_map.get(f"{prefix}_BASE_URL") or "").strip()
+            base_url_value = resolve_llm_channel_base_url(name, effective_map.get(f"{prefix}_BASE_URL"))
             if name.lower() == "anspire" and not base_url_value:
                 base_url_value = (
                     effective_map.get("ANSPIRE_LLM_BASE_URL")

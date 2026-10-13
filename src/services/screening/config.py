@@ -13,6 +13,7 @@ from src.config import (
     find_llm_channel_surface_conflicts,
     normalize_llm_channel_api_surface,
     normalize_llm_channel_model,
+    resolve_llm_channel_base_url,
     resolve_llm_channel_protocol,
 )
 from src.llm.hermes import is_reserved_hermes_name
@@ -419,7 +420,7 @@ def _parse_llm_channels_env() -> list[dict[str, object]]:
             continue
         key = name.upper()
         enabled = _parse_bool_env(f"LLM_{key}_ENABLED", True)
-        base_url = os.getenv(f"LLM_{key}_BASE_URL", "").strip()
+        base_url = resolve_llm_channel_base_url(name, os.getenv(f"LLM_{key}_BASE_URL", ""))
         protocol = os.getenv(f"LLM_{key}_PROTOCOL", "").strip().lower()
         api_surface_raw = os.getenv(f"LLM_{key}_API_SURFACE", "")
         api_surface = normalize_llm_channel_api_surface(api_surface_raw)

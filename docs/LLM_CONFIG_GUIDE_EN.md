@@ -245,13 +245,11 @@ If you prefer modifying files, configuring this in the `.env` file is also very 
 
 ```env
 LLM_CHANNELS=modelflare
-LLM_MODELFLARE_PROTOCOL=openai
-LLM_MODELFLARE_API_SURFACE=chat_completions
-LLM_MODELFLARE_BASE_URL=https://modelflare.dev/v1
 LLM_MODELFLARE_API_KEY=sk-xxx
 LLM_MODELFLARE_MODELS=gpt-5.6-sol
-LITELLM_MODEL=openai/gpt-5.6-sol
 ```
+
+For the channel named `modelflare`, an omitted or blank Base URL defaults to `https://modelflare.dev/v1`; an explicit `LLM_MODELFLARE_BASE_URL` takes precedence. Protocol defaults to `openai` for this endpoint and the API surface to `chat_completions`. When `LITELLM_MODEL` is unset, the first channel model is selected. Keep the model explicit and choose one your key can access; no model or legacy key is added automatically.
 
 `gpt-5.6-sol` is the official quickstart example. Select models available to your account and confirm them with the Web editor's "Discover models" and "Test connection" actions; do not append `/chat/completions` to the Base URL. Modelflare is the initially selected template for new channels. Reordering templates does not change saved channels or primary models. Anspire Search continues to use `ANSPIRE_API_KEYS` independently.
 

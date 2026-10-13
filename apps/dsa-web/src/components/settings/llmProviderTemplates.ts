@@ -57,7 +57,7 @@ export const LLM_PROVIDER_TEMPLATES: LLMProviderTemplate[] = [
     placeholderModels: 'gpt-5.6-sol',
     capabilities: ['openai-compatible', 'aggregator', 'model-discovery'],
     configHint:
-      'API Key 的路由分组需支持所选模型；模型 ID 请以控制台或获取模型的结果为准。Base URL 使用 /v1，不额外拼接 /chat/completions。',
+      'API Key 的路由分组需支持所选模型；模型 ID 请以控制台或获取模型的结果为准。modelflare 渠道的 Base URL 留空时使用默认 /v1 地址，可按需覆盖，不额外拼接 /chat/completions。',
     officialSources: [
       { label: 'Modelflare Docs', url: 'https://docs.modelflare.dev/' },
       { label: 'Modelflare Models & Pricing', url: 'https://modelflare.dev/pricing' },

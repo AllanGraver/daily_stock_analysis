@@ -252,13 +252,11 @@ ANSPIRE_API_KEYS=sk-xxxxxxxxxxxxxxxx
 
 ```env
 LLM_CHANNELS=modelflare
-LLM_MODELFLARE_PROTOCOL=openai
-LLM_MODELFLARE_API_SURFACE=chat_completions
-LLM_MODELFLARE_BASE_URL=https://modelflare.dev/v1
 LLM_MODELFLARE_API_KEY=sk-xxx
 LLM_MODELFLARE_MODELS=gpt-5.6-sol
-LITELLM_MODEL=openai/gpt-5.6-sol
 ```
+
+渠道名为 `modelflare` 时，未填写或留空的接入地址自动使用 `https://modelflare.dev/v1`；显式 `LLM_MODELFLARE_BASE_URL` 优先。该地址默认识别为 `openai` 协议，接口默认为 `chat_completions`；未设置 `LITELLM_MODEL` 时使用首个渠道模型。模型仍需明确填写并按账号权限选择，不自动添加模型或 legacy Key。
 
 `gpt-5.6-sol` 是官方快速开始中的模型示例。请按账号权限选择实际可用模型，并通过 Web「获取模型」和「测试连接」确认；Base URL 不要附加 `/chat/completions`。Modelflare 是新建渠道的首选模板，已保存的渠道和主模型不会因模板顺序调整而改变。Anspire Search 仍通过 `ANSPIRE_API_KEYS` 独立配置。
 

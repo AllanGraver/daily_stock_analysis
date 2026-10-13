@@ -24,26 +24,16 @@ English | [简体中文](../README.md) | [繁體中文](README_CHT.md)
 
 </div>
 
-## 💖 Sponsors
-
+<details open>
+<summary><strong>💖 Sponsors</strong></summary>
 <div align="center">
-  <p align="center">
-    <a href="https://modelflare.dev/sign-up?utm_source=github&amp;utm_campaign=daily_stock_analysis"><img src="assets/modelflare_banner.png" alt="Modelflare stable, lower-cost LLM, image and video API" width="720"></a>
-  </p>
-  <p align="center">
-    <strong>Thanks to Modelflare for sponsoring this project!</strong><br>
-    A stable, lower-cost API for GPT / Claude / Gemini / Grok. <a href="https://modelflare.dev/sign-up?utm_source=github&amp;utm_campaign=daily_stock_analysis">Sign up</a>
-  </p>
-  <details>
-    <summary>Models, offers &amp; cache guarantee</summary>
-    <p>Operated by Havenbyte LLC in the US, with access to leading LLMs and 40+ image and video models.</p>
-    <p>Selected OpenAI groups offer daily cache-hit guarantees of 65% / 75% / 85%, measured against settled usage, with eligible shortfalls refunded. Usage, cache rates, actual costs and shortfall refunds are visible in the dashboard.</p>
-    <p>A single US$20 top-up unlocks GPT at 0.015x; a single US$50 top-up unlocks Claude at 0.03x. See <a href="https://modelflare.dev/sign-up?utm_source=github&amp;utm_campaign=daily_stock_analysis">Modelflare</a> for eligible models, groups, top-ups and guarantee terms.</p>
-  </details>
-  <p align="center">
+  <p><a href="https://modelflare.dev/sign-up?utm_source=github&amp;utm_campaign=daily_stock_analysis"><img src="assets/modelflare_banner.png" alt="Modelflare" width="600"></a></p>
+  <p>Thanks to Modelflare! Stable, lower-cost GPT / Claude / Gemini / Grok API. <a href="https://modelflare.dev/sign-up?utm_source=github&amp;utm_campaign=daily_stock_analysis">Sign up</a> · <a href="https://docs.modelflare.dev/guides/features/cache-guarantee/">Cache guarantee terms</a></p>
+  <p>
     <a href="https://serpapi.com/github-daily-stock-analysis" target="_blank"><img src="assets/serpapi_banner_en.png" alt="Easily scrape real-time financial news data from search engines - SerpApi" width="300" height="141" style="width: 300px; height: 141px; object-fit: contain;"></a>
   </p>
 </div>
+</details>
 
 ## 🖥️ Product Preview
 
@@ -96,7 +86,7 @@ Choose one provider and complete its configuration. Modelflare uses the channel 
 | Secret Name | Description | Required |
 |-------------|-------------|:--------:|
 | `LLM_CHANNELS` / `LLM_MODELFLARE_API_KEY` | [Modelflare](https://modelflare.dev/sign-up?utm_source=github&utm_campaign=daily_stock_analysis): set `LLM_CHANNELS=modelflare` and enter your Modelflare API key | **Recommended** |
-| `LLM_MODELFLARE_BASE_URL` / `LLM_MODELFLARE_MODELS` | Set the endpoint and model IDs (such as `gpt-5.6-sol`) using the [LLM Config Guide](./LLM_CONFIG_GUIDE_EN.md) | Required for Modelflare |
+| `LLM_MODELFLARE_MODELS` | Set a model available to your account, such as `gpt-5.6-sol`; the endpoint is supplied automatically | Required for Modelflare |
 | `AIHUBMIX_KEY` | [AIHubMix](https://inferera.com/?aff=CfMq) API key, one key for multiple model families and a 10% top-up discount for this project | **Recommended** |
 | `GEMINI_API_KEY` | Google Gemini API key | Optional |
 | `ANTHROPIC_API_KEY` | Anthropic Claude API key | Optional |
