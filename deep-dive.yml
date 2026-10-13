@@ -1,0 +1,142 @@
+name: 单股深度分析
+
+# 用途：对个别感兴趣的股票做一次性深度分析（报告用 full 完整仪表盘）。
+# 与 00-daily-analysis.yml 完全隔离：
+#   - 不读取任何 Repository Variables（STOCK_LIST / REPORT_TYPE 等一概不碰）
+#   - 使用独立的 concurrency group，不会和每日任务互相取消或排队
+#   - 股票代码由手动输入提供，不会影响每日定时任务的股票池
+#
+# 使用方法：Actions → 单股深度分析 → Run workflow → 填写股票代码 → 运行
+
+on:
+  workflow_dispatch:
+    inputs:
+      stocks:
+        description: '要分析的股票代码（逗号分隔，如 AAPL 或 00700.HK,NVDA,GLD）'
+        required: true
+        type: string
+      report_type:
+        description: '报告详细程度'
+        required: true
+        default: 'full'
+        type: choice
+        options:
+          - full      # 完整决策仪表盘（技术面/消息面/风险/作战计划）
+          - simple    # 精简版
+          - brief     # 3-5 句话
+      market_review:
+        description: '是否附带大盘复盘（会增加 3~6 分钟和额外 token）'
+        required: true
+        default: false
+        type: boolean
+      send_notification:
+        description: '是否推送到飞书（不勾选则只生成 artifact 报告）'
+        required: true
+        default: true
+        type: boolean
+
+# 独立并发组：与每日任务的 stock-analysis 互不干扰
+concurrency:
+  group: deep-dive
+  cancel-in-progress: false
+
+jobs:
+  deep-dive:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v5
+
+      - name: 设置 Python 环境
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 安装依赖
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 创建必要目录
+        run: mkdir -p data logs reports
+
+      - name: 执行深度分析
+        env:
+          # ---------- AI 配置（复用仓库已有 Secrets）----------
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          GENERATION_FALLBACK_BACKEND: litellm
+          LLM_TEMPERATURE: '0.7'
+
+          # ---------- 搜索服务 ----------
+          TAVILY_API_KEYS: ${{ secrets.TAVILY_API_KEYS }}
+          ANSPIRE_API_KEYS: ${{ secrets.ANSPIRE_API_KEYS }}
+
+          # ---------- 通知（飞书）----------
+          FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+          FEISHU_WEBHOOK_SECRET: ${{ secrets.FEISHU_WEBHOOK_SECRET }}
+
+          # ---------- 本次运行的行为（全部在此写死，不读 Variables）----------
+          # 同时写入 STOCK_LIST 作为兜底：即使某条路径回退到配置文件，也只会分析本次输入的目标
+          STOCK_LIST: ${{ inputs.stocks }}
+          REPORT_TYPE: ${{ inputs.report_type }}
+          SINGLE_STOCK_NOTIFY: 'false'
+          MARKET_REVIEW_ENABLED: ${{ inputs.market_review }}
+          MARKET_REVIEW_REGION: 'hk,us'
+          REPORT_INTEGRITY_RETRY: '1'
+          REPORT_SHOW_LLM_MODEL: 'true'
+          MAX_WORKERS: '3'
+          ANALYSIS_TIMEOUT_MINUTES: '60'
+          ENABLE_CHIP_DISTRIBUTION: 'false'
+          TRADING_DAY_CHECK_ENABLED: 'true'
+          LOG_LEVEL: INFO
+
+        run: |
+          echo "=========================================="
+          echo "🔍 单股深度分析"
+          echo "=========================================="
+          echo "⏰ 时间: $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S')"
+          echo "📊 目标: ${{ inputs.stocks }}"
+          echo "📝 报告类型: ${{ inputs.report_type }}"
+          echo "📈 大盘复盘: ${{ inputs.market_review }}"
+          echo "=========================================="
+          echo ""
+
+          NOTIFY_ARG=""
+          if [ "${{ inputs.send_notification }}" != "true" ]; then
+            NOTIFY_ARG="--no-notify"
+            echo "🔇 已关闭推送，仅生成 artifact 报告"
+          fi
+
+          # --force-run：跳过交易日检查，随时可跑
+          python main.py --stocks "${{ inputs.stocks }}" --force-run $NOTIFY_ARG
+
+      - name: 上传分析报告
+        uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: deep-dive-${{ github.run_number }}
+          path: |
+            reports/
+            logs/
+          retention-days: 30
+
+      - name: 显示运行结果
+        if: always()
+        run: |
+          echo ""
+          echo "=========================================="
+          echo "📊 运行结束"
+          echo "=========================================="
+          if [ -d "reports" ] && [ "$(ls -A reports 2>/dev/null)" ]; then
+            echo "生成的报告:"
+            ls -la reports/
+          else
+            echo "⚠️ 未生成报告文件"
+          fi
+          echo ""
+          echo "提示：日志里搜「not valid JSON」和「数据获取失败」可快速判断是否正常。"
