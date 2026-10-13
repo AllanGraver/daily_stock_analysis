@@ -268,6 +268,9 @@ function resolveInitialChannelApiKeySource(
   if (apiKeysValue) {
     return initialItemSourceByKey.get(apiKeysKey);
   }
+  if (upperName === 'MODELFLARE' && initialItemValueByKey.get('MODELFLARE_KEY')) {
+    return initialItemSourceByKey.get('MODELFLARE_KEY');
+  }
   return initialItemSourceByKey.get(apiKeysKey) ?? initialItemSourceByKey.get(apiKeyKey);
 }
 
@@ -297,6 +300,9 @@ function resolveInitialChannelApiKeyValue(
   }
   if (apiKeyValue) {
     return apiKeyValue;
+  }
+  if (upperName === 'MODELFLARE') {
+    return itemValueByKey.get('MODELFLARE_KEY') || '';
   }
   return itemValueByKey.get(apiKeysKey) || itemValueByKey.get(apiKeyKey) || '';
 }
@@ -1465,7 +1471,11 @@ function parseChannelsFromItems(
   itemSourceByKey: Map<string, boolean> = new Map(),
 ): ChannelConfig[] {
   const itemMap = new Map(items.map((item) => [item.key.toUpperCase(), item.value]));
-  const channelNames = (itemMap.get('LLM_CHANNELS') || '')
+  const implicitModelflare = splitModels(itemMap.get('MODELFLARE_KEY') || '').length > 0
+    || splitModels(itemMap.get('LLM_MODELFLARE_API_KEY') || '').length > 0
+    || splitModels(itemMap.get('LLM_MODELFLARE_API_KEYS') || '').length > 0;
+  const channelNames = ((itemMap.get('LLM_CHANNELS') || '').trim()
+    || (implicitModelflare ? 'modelflare' : ''))
     .split(',')
     .map((segment) => segment.trim())
     .filter(Boolean);
@@ -1579,8 +1589,13 @@ function buildFilteredChannelUpdateItems({
     ...buildChangedItemKeys(channels, initialChannels, initialItemSourceByKey, savedItemMap),
     ...runtimeConfigChangedKeys(runtimeConfig, initialRuntimeConfig),
   ]);
-  return channelsToUpdateItems(channels, initialNames, runtimeConfig, managesRuntimeConfig).filter((item) => {
+  const usesSimpleModelflare = Boolean(savedItemMap.get('MODELFLARE_KEY'))
+    && !(savedItemMap.get('LLM_CHANNELS') || '').trim()
+    && !(savedItemMap.get('LLM_MODELFLARE_API_KEY') || '').trim()
+    && !(savedItemMap.get('LLM_MODELFLARE_API_KEYS') || '').trim();
+  const updates = channelsToUpdateItems(channels, initialNames, runtimeConfig, managesRuntimeConfig).filter((item) => {
     const itemKey = item.key.toUpperCase();
+    if (usesSimpleModelflare && !changedKeys.has(itemKey)) return false;
     const initialItemSource = initialItemSourceByKey.get(itemKey);
     if (initialItemSource === false) {
       return changedKeys.has(itemKey);
@@ -1590,6 +1605,15 @@ function buildFilteredChannelUpdateItems({
     }
     return true;
   });
+  if (usesSimpleModelflare) {
+    const current = channels.find((channel) => channel.name.toLowerCase() === 'modelflare');
+    const previous = initialChannels.find((channel) => channel.name.toLowerCase() === 'modelflare');
+    if (current?.apiKey !== previous?.apiKey) {
+      updates.push({ key: 'MODELFLARE_KEY', value: current?.apiKey || '' });
+    }
+    return updates.filter((item) => item.key !== 'LLM_MODELFLARE_API_KEY' && item.key !== 'LLM_MODELFLARE_API_KEYS');
+  }
+  return updates;
 }
 
 function buildChannelDraftItems({

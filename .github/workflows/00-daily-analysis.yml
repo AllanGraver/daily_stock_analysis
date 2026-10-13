@@ -89,7 +89,8 @@ jobs:
           LLM_PROMPT_CACHE_HINTS_ENABLED: ${{ vars.LLM_PROMPT_CACHE_HINTS_ENABLED || secrets.LLM_PROMPT_CACHE_HINTS_ENABLED }}
           LLM_PROMPT_CACHE_DIAGNOSTICS_LEVEL: ${{ vars.LLM_PROMPT_CACHE_DIAGNOSTICS_LEVEL || secrets.LLM_PROMPT_CACHE_DIAGNOSTICS_LEVEL }}
           LLM_CHANNELS: ${{ vars.LLM_CHANNELS || secrets.LLM_CHANNELS }}
-          # Modelflare（OpenAI Compatible）；API Key 只从 Secrets 注入。
+          # Modelflare：只需 MODELFLARE_KEY；以下渠道配置供高级覆盖。
+          MODELFLARE_KEY: ${{ secrets.MODELFLARE_KEY }}
           LLM_MODELFLARE_PROTOCOL: ${{ vars.LLM_MODELFLARE_PROTOCOL || secrets.LLM_MODELFLARE_PROTOCOL }}
           LLM_MODELFLARE_API_SURFACE: ${{ vars.LLM_MODELFLARE_API_SURFACE || secrets.LLM_MODELFLARE_API_SURFACE }}
           LLM_MODELFLARE_BASE_URL: ${{ vars.LLM_MODELFLARE_BASE_URL || secrets.LLM_MODELFLARE_BASE_URL }}
@@ -485,14 +486,14 @@ jobs:
           echo "📋 配置检查"
           echo "=========================================="
           echo "【AI 配置】"
-          if [ -n "$LITELLM_CONFIG" ] || [ -n "$LITELLM_API_KEY" ] || [ -n "$LITELLM_MODEL" ] || [ -n "$LLM_CHANNELS" ] || [ -n "$ANSPIRE_API_KEYS" ]; then
+          if [ -n "$LITELLM_CONFIG" ] || [ -n "$LITELLM_API_KEY" ] || [ -n "$LITELLM_MODEL" ] || [ -n "$LLM_CHANNELS" ] || [ -n "$MODELFLARE_KEY" ] || [ -n "$LLM_MODELFLARE_API_KEY" ] || [ -n "$LLM_MODELFLARE_API_KEYS" ] || [ -n "$ANSPIRE_API_KEYS" ]; then
             echo "  LiteLLM: ✅ 已配置"
           else
             echo "  LiteLLM: ❌ 未配置"
           fi
           echo "  Gemini API Key: $([ -n "$GEMINI_API_KEY" ] && echo '✅ 已配置' || echo '❌ 未配置')"
           echo "  DeepSeek Key:   $([ -n "$DEEPSEEK_API_KEY" ] && echo '✅ 已配置' || echo '⚪ 未配置')"
-          echo "  Modelflare Key: $([ -n "$LLM_MODELFLARE_API_KEY" ] || [ -n "$LLM_MODELFLARE_API_KEYS" ] && echo '✅ 已配置' || echo '⚪ 未配置')"
+          echo "  Modelflare Key: $([ -n "$MODELFLARE_KEY" ] || [ -n "$LLM_MODELFLARE_API_KEY" ] || [ -n "$LLM_MODELFLARE_API_KEYS" ] && echo '✅ 已配置' || echo '⚪ 未配置')"
           echo "  Anspire Key:    $([ -n "$ANSPIRE_API_KEYS" ] && echo '✅ 已配置' || echo '⚪ 未配置')"
           echo "  AIHubMix Key:   $([ -n "$AIHUBMIX_KEY" ] && echo '✅ 已配置' || echo '⚪ 未配置')"
           echo "  OpenAI API Key: $([ -n "$OPENAI_API_KEY" ] && echo '✅ 已配置' || echo '⚪ 未配置')"

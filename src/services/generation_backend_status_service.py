@@ -25,6 +25,8 @@ from src.config import (
     parse_env_bool,
     resolve_llm_channel_base_url,
     resolve_llm_channel_models,
+    resolve_llm_channel_api_keys,
+    resolve_llm_channel_names,
     resolve_llm_channel_protocol,
 )
 from src.llm.backend_registry import (
@@ -832,7 +834,7 @@ class GenerationBackendStatusService:
     @classmethod
     def _parse_llm_channels_from_map(cls, effective_map: Dict[str, str]) -> List[Dict[str, Any]]:
         channels: List[Dict[str, Any]] = []
-        for raw_name in cls._split_csv(effective_map.get("LLM_CHANNELS") or ""):
+        for raw_name in cls._split_csv(resolve_llm_channel_names(effective_map)):
             name = raw_name.strip()
             if not name:
                 continue
@@ -861,10 +863,11 @@ class GenerationBackendStatusService:
                 api_keys = [single_key]
             if lower == "anspire" and not api_keys:
                 api_keys = cls._split_csv(effective_map.get("ANSPIRE_API_KEYS") or "")
+            api_keys = resolve_llm_channel_api_keys(name, api_keys, effective_map)
 
             raw_models = cls._split_csv(effective_map.get(f"{prefix}_MODELS") or "")
             raw_models = resolve_llm_channel_models(
-                name, raw_models, channel_names=effective_map.get("LLM_CHANNELS") or "",
+                name, raw_models, channel_names=resolve_llm_channel_names(effective_map),
                 primary_model=effective_map.get("LITELLM_MODEL") or "",
                 fallback_models=effective_map.get("LITELLM_FALLBACK_MODELS") or "",
             )

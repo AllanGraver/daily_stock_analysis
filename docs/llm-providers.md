@@ -65,9 +65,10 @@ Phase 6a Tool Surface 是 AgentBackend 的唯一内部工具面：统一 DSA 工
 [注册 Modelflare](https://modelflare.dev/sign-up?utm_source=github&utm_campaign=daily_stock_analysis)，创建 API Key 后使用 OpenAI-compatible 渠道：
 
 ```env
-LLM_CHANNELS=modelflare
-LLM_MODELFLARE_API_KEY=sk-xxx
+MODELFLARE_KEY=sk-xxx
 ```
+
+只需填写 `MODELFLARE_KEY`，后端自动启用 Modelflare，默认地址为 `https://modelflare.dev/v1`、模型为 `openai/gpt-6.1-sol`，无需填写渠道名、地址或模型。显式 YAML 或 `LLM_CHANNELS` 优先，Modelflare 显式渠道 Key 优先于此简写；清空 Key 或禁用渠道即可停用。推导不改写已保存配置。
 
 只声明 `modelflare` 一个渠道且未填渠道模型列表时，未配置主模型时默认使用 `openai/gpt-6.1-sol`；配置主模型后，后端复用 `LITELLM_MODEL` 和带 `openai/` 前缀的备用模型；主模型使用 `openai/<模型名>`。显式 `LLM_MODELFLARE_MODELS` 优先，多渠道仍需分别声明模型。推导不改写已保存配置或模型选择。
 
@@ -174,10 +175,11 @@ LITELLM_FALLBACK_MODELS=openai/gpt-5.6-terra,openai/gpt-5.6-luna
 
 ## GitHub Actions 配置
 
-仓库自带 `.github/workflows/00-daily-analysis.yml` 只会透传 workflow 中显式列出的环境变量。使用渠道模式时，先在 Repository Variables 或 Secrets 中设置 `LLM_CHANNELS`，再按渠道名补齐对应 `LLM_<CHANNEL>_*`。
+仓库自带 `.github/workflows/00-daily-analysis.yml` 只会透传 workflow 中显式列出的环境变量。Modelflare 单 Key 接入只需在 Secrets 中设置 `MODELFLARE_KEY`。使用显式渠道模式时，先在 Repository Variables 或 Secrets 中设置 `LLM_CHANNELS`，再按渠道名补齐对应 `LLM_<CHANNEL>_*`。
 
 | 字段 | 建议位置 | 说明 |
 | --- | --- | --- |
+| `MODELFLARE_KEY` | Secrets | Modelflare 单 Key 接入，自动补齐默认地址与模型。 |
 | `LLM_CHANNELS` | Variables 或 Secrets | 逗号分隔渠道名，例如 `deepseek,minimax,volcengine`。 |
 | `LLM_<CHANNEL>_PROTOCOL` | Variables 或 Secrets | 非敏感，通常为 `openai`、`deepseek`、`gemini`、`anthropic` 或 `ollama`。 |
 | `LLM_<CHANNEL>_API_SURFACE` | Variables 或 Secrets | 可选；`chat_completions`（默认）或 `responses`。Responses 当前只支持 `openai` 协议。 |

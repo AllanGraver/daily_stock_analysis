@@ -57,7 +57,7 @@ daily_stock_analysis/
 
 | Secret 名称 | 说明 | 必填 |
 |------------|------|:----:|
-| `LLM_MODELFLARE_API_KEY` | [Modelflare](https://modelflare.dev/sign-up?utm_source=github&utm_campaign=daily_stock_analysis) API Key；配合下方 Channels 示例配置 | 推荐 |
+| `MODELFLARE_KEY` | [Modelflare](https://modelflare.dev/sign-up?utm_source=github&utm_campaign=daily_stock_analysis) API Key，自动补齐默认地址和模型 | 推荐 |
 | `AIHUBMIX_KEY` | [AIHubMix](https://inferera.com/?aff=CfMq) API Key，一 Key 切换使用全系模型，本项目可享 10% 优惠 | 推荐 |
 | `GEMINI_API_KEY` | [Google AI Studio](https://aistudio.google.com/) 获取免费 Key | 可选 |
 | `ANTHROPIC_API_KEY` | Anthropic Claude API Key | 可选 |
@@ -66,7 +66,7 @@ daily_stock_analysis/
 | `OPENAI_MODEL` | 模型名称（如 `gemini-3.1-pro-preview`、`deepseek-v4-flash`、`gpt-5.5`） | 可选 |
 | `ANSPIRE_API_KEYS` | Anspire 搜索与 LLM 共用 Key 的 legacy 兼容入口；模型权限以控制台为准 | 可选 |
 
-> *注：以上模型 Key / 渠道至少配置一个。Modelflare 使用 `LLM_CHANNELS=modelflare`、`LLM_MODELFLARE_API_KEY` 即可，单渠道默认模型为 `openai/gpt-6.1-sol`（可通过 `LITELLM_MODEL` 覆盖），接入地址默认使用 `https://modelflare.dev/v1`，完整示例见 [LLM 配置指南](LLM_CONFIG_GUIDE.md#示例modelflare)。实际模型以账号权限为准。启动时配置校验会在缺少可用 AI 模型 Key 或模型渠道时给出明确错误提示。
+> *注：以上模型 Key / 渠道至少配置一个。Modelflare 只需填写 `MODELFLARE_KEY`，单渠道默认模型为 `openai/gpt-6.1-sol`（可通过 `LITELLM_MODEL` 覆盖），接入地址默认使用 `https://modelflare.dev/v1`，完整示例见 [LLM 配置指南](LLM_CONFIG_GUIDE.md#示例modelflare)。实际模型以账号权限为准。启动时配置校验会在缺少可用 AI 模型 Key 或模型渠道时给出明确错误提示。
 
 #### 通知渠道配置（可同时配置多个，全部推送）
 
@@ -265,7 +265,8 @@ daily_stock_analysis/
 | `AGENT_CONTEXT_PROTECTED_TURNS` | 压缩时最近 N 个用户轮次及其后的回复保留原文；留空则跟随 profile preset | - | 否 |
 | `LITELLM_FALLBACK_MODELS` | 备选模型，逗号分隔 | - | 否 |
 | `LLM_CHANNELS` | 渠道名称列表（逗号分隔），配合 `LLM_{NAME}_*` 使用，详见 [LLM 配置指南](LLM_CONFIG_GUIDE.md) | - | 否 |
-| `LLM_MODELFLARE_API_KEY` | Modelflare 渠道 Key（多 Key 可用 `LLM_MODELFLARE_API_KEYS`）；Actions 仅从 Secrets 读取 | - | 选用时 |
+| `MODELFLARE_KEY` | Modelflare 单 Key 接入，自动启用默认渠道；Actions 仅从 Secrets 读取 | - | 选用时 |
+| `LLM_MODELFLARE_API_KEY` | 高级渠道 Key，优先于 MODELFLARE_KEY；多 Key 可用 `LLM_MODELFLARE_API_KEYS` | - | 否 |
 | `LLM_MODELFLARE_PROTOCOL` | Modelflare 渠道协议，默认地址自动识别为 `openai` | `openai` | 否 |
 | `LLM_MODELFLARE_API_SURFACE` | Modelflare 渠道 API Surface，快速开始示例使用 `chat_completions` | `chat_completions` | 否 |
 | `LLM_MODELFLARE_BASE_URL` | Modelflare 接入地址，显式配置优先于默认值 | `https://modelflare.dev/v1` | 否 |

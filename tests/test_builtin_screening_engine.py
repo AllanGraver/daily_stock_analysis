@@ -32,8 +32,7 @@ def test_screening_modelflare_channel_uses_shared_default_endpoint() -> None:
     from src.services.screening.config import _parse_llm_channels_env
 
     with patch.dict(os.environ, {
-        "LLM_CHANNELS": "modelflare",
-        "LLM_MODELFLARE_API_KEY": "sk-test",
+        "MODELFLARE_KEY": "sk-test",
     }, clear=True):
         channels = _parse_llm_channels_env()
     assert channels[0]["base_url"] == "https://modelflare.dev/v1"

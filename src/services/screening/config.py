@@ -15,6 +15,8 @@ from src.config import (
     normalize_llm_channel_model,
     resolve_llm_channel_base_url,
     resolve_llm_channel_models,
+    resolve_llm_channel_api_keys,
+    resolve_llm_channel_names,
     resolve_llm_channel_protocol,
 )
 from src.llm.hermes import is_reserved_hermes_name
@@ -415,7 +417,7 @@ def _parse_optional_float_env(name: str) -> float | None:
 
 def _parse_llm_channels_env() -> list[dict[str, object]]:
     channels = []
-    for raw_name in _parse_csv_env("LLM_CHANNELS", []):
+    for raw_name in resolve_llm_channel_names(os.environ).split(","):
         name = raw_name.strip()
         if not name:
             continue
@@ -429,9 +431,10 @@ def _parse_llm_channels_env() -> list[dict[str, object]]:
             _parse_csv_env(f"LLM_{key}_API_KEYS", [])
             or _parse_csv_env(f"LLM_{key}_API_KEY", [])
         )
+        api_keys = resolve_llm_channel_api_keys(name, api_keys, os.environ)
         models = resolve_llm_channel_models(
             name, _parse_csv_env(f"LLM_{key}_MODELS", []),
-            channel_names=os.getenv("LLM_CHANNELS", ""),
+            channel_names=resolve_llm_channel_names(os.environ),
             primary_model=os.getenv("LITELLM_MODEL", ""),
             fallback_models=os.getenv("LITELLM_FALLBACK_MODELS", ""),
         )

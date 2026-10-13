@@ -16,7 +16,7 @@ import os
 import re
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Tuple
+from typing import Any, Dict, List, Literal, Mapping, Optional, Tuple
 from urllib.parse import unquote, urlparse
 from dotenv import load_dotenv, dotenv_values
 from dataclasses import dataclass, field
@@ -511,6 +511,29 @@ def resolve_llm_channel_base_url(channel_name: str, base_url: Optional[str]) -> 
     if channel_name.strip().lower() == "modelflare":
         return MODELFLARE_LLM_BASE_URL_DEFAULT
     return ""
+
+
+def resolve_llm_channel_names(config_map: Mapping[str, str]) -> str:
+    """Infer the Modelflare channel from its key unless channels are explicit."""
+    channels = (config_map.get("LLM_CHANNELS") or "").strip()
+    if channels:
+        return channels
+    if any(
+        key.strip()
+        for field in ("MODELFLARE_KEY", "LLM_MODELFLARE_API_KEY", "LLM_MODELFLARE_API_KEYS")
+        for key in (config_map.get(field) or "").split(',')
+    ):
+        return "modelflare"
+    return ""
+
+
+def resolve_llm_channel_api_keys(
+    channel_name: str, api_keys: List[str], config_map: Mapping[str, str],
+) -> List[str]:
+    """Keep explicit channel keys first, with MODELFLARE_KEY as its shorthand."""
+    if api_keys or channel_name.strip().lower() != "modelflare":
+        return api_keys
+    return [key.strip() for key in (config_map.get("MODELFLARE_KEY") or "").split(',') if key.strip()]
 
 
 def resolve_llm_channel_models(
@@ -1636,7 +1659,7 @@ class Config:
 
         # Priority 2: LLM_CHANNELS (env var based channel config)
         if not llm_model_list:
-            _channels_str = os.getenv('LLM_CHANNELS', '').strip()
+            _channels_str = resolve_llm_channel_names(os.environ)
             if _channels_str:
                 llm_channel_names = [
                     ch.strip().lower()
@@ -2530,6 +2553,7 @@ class Config:
             if not api_keys and ch_lower == "anspire":
                 anspire_keys_raw = os.getenv('ANSPIRE_API_KEYS', '')
                 api_keys = [k.strip() for k in anspire_keys_raw.split(',') if k.strip()]
+            api_keys = resolve_llm_channel_api_keys(ch_name, api_keys, os.environ)
 
             # Models
             models_raw = os.getenv(f'LLM_{ch_upper}_MODELS', '')

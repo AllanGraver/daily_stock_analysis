@@ -251,9 +251,10 @@ ANSPIRE_API_KEYS=sk-xxxxxxxxxxxxxxxx
 [注册 Modelflare](https://modelflare.dev/sign-up?utm_source=github&utm_campaign=daily_stock_analysis)，在控制台创建 API Key 后配置：
 
 ```env
-LLM_CHANNELS=modelflare
-LLM_MODELFLARE_API_KEY=sk-xxx
+MODELFLARE_KEY=sk-xxx
 ```
+
+只需填写 `MODELFLARE_KEY`，后端自动启用 Modelflare，默认地址为 `https://modelflare.dev/v1`、模型为 `openai/gpt-6.1-sol`，无需填写渠道名、地址或模型。显式 YAML 或 `LLM_CHANNELS` 优先，Modelflare 显式渠道 Key 优先于此简写；清空 Key 或禁用渠道即可停用。推导不改写已保存配置。
 
 只声明 `modelflare` 一个渠道且未填渠道模型列表时，未配置主模型时默认使用 `openai/gpt-6.1-sol`；配置主模型后，后端复用 `LITELLM_MODEL` 和带 `openai/` 前缀的备用模型；主模型使用 `openai/<模型名>`。显式 `LLM_MODELFLARE_MODELS` 优先，多渠道仍需分别声明模型。推导不改写已保存配置或模型选择。
 

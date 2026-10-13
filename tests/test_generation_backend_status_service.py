@@ -391,8 +391,7 @@ def test_litellm_channel_route_is_used_for_status_and_smoke_config() -> None:
 def test_modelflare_minimal_channel_is_available_for_status_and_smoke() -> None:
     _CapturingAnalyzer.configs = []
     effective_map = {
-        "LLM_CHANNELS": "modelflare",
-        "LLM_MODELFLARE_API_KEY": "sk-test",
+        "MODELFLARE_KEY": "sk-test",
     }
     service = GenerationBackendStatusService(
         effective_map=effective_map,

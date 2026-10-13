@@ -2905,8 +2905,7 @@ class SystemConfigServiceTestCase(unittest.TestCase):
 
     def test_minimal_modelflare_config_is_valid_and_ready_without_persisting_defaults(self) -> None:
         self._rewrite_env(
-            "LLM_CHANNELS=modelflare",
-            "LLM_MODELFLARE_API_KEY=sk-test",
+            "MODELFLARE_KEY=sk-test",
             "STOCK_LIST=600519",
         )
         before = self.env_path.read_text(encoding="utf-8")
@@ -2914,9 +2913,29 @@ class SystemConfigServiceTestCase(unittest.TestCase):
             validation = self.service.validate(items=[])
             status = self.service.get_setup_status()
             models = self.service._collect_llm_channel_models_from_map(self.manager.read_config_map())
+            self.assertTrue(self.service.preview_generation_backend_status(items=[])["primary"]["available"])
+            item = next(item for item in self.service.get_config()["items"] if item["key"] == "MODELFLARE_KEY")
+            self.assertTrue(item["schema"]["is_sensitive"])
         self.assertTrue(validation["valid"], validation["issues"])
         self.assertTrue(status["is_complete"])
         self.assertEqual(models, ["openai/gpt-6.1-sol"])
+        self.assertEqual(self.env_path.read_text(encoding="utf-8"), before)
+
+    def test_modelflare_one_key_runtime_display_and_draft_validation_do_not_persist(self) -> None:
+        self._rewrite_env("STOCK_LIST=600519")
+        before = self.env_path.read_text(encoding="utf-8")
+        with patch.dict(os.environ, {"MODELFLARE_KEY": "sk-test"}, clear=True):
+            config = self.service.get_config()
+            items = {item["key"]: item for item in config["items"]}
+            self.assertEqual(items["MODELFLARE_KEY"]["value"], "sk-test")
+            self.assertFalse(items["MODELFLARE_KEY"]["raw_value_exists"])
+            self.assertTrue(items["MODELFLARE_KEY"]["schema"]["is_sensitive"])
+            self.assertTrue(self.service.preview_generation_backend_status(items=[])["primary"]["available"])
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertTrue(self.service.validate(items=[{"key": "MODELFLARE_KEY", "value": "sk-draft"}])["valid"])
+            self.assertTrue(self.service.preview_generation_backend_status(
+                items=[{"key": "MODELFLARE_KEY", "value": "sk-draft"}],
+            )["primary"]["available"])
         self.assertEqual(self.env_path.read_text(encoding="utf-8"), before)
 
     @patch("litellm.completion")

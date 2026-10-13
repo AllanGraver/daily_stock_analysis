@@ -244,9 +244,10 @@ If you prefer modifying files, configuring this in the `.env` file is also very 
 [Register with Modelflare](https://modelflare.dev/sign-up?utm_source=github&utm_campaign=daily_stock_analysis), create an API key in the console, and configure:
 
 ```env
-LLM_CHANNELS=modelflare
-LLM_MODELFLARE_API_KEY=sk-xxx
+MODELFLARE_KEY=sk-xxx
 ```
+
+With `MODELFLARE_KEY` alone, the backend enables Modelflare and uses `https://modelflare.dev/v1` and `openai/gpt-6.1-sol`. No channel, endpoint or model variables are required. Explicit YAML or `LLM_CHANNELS` takes precedence; explicit Modelflare channel keys override this shorthand. Clear the key or disable the channel to stop using it. Inference does not rewrite saved configuration.
 
 When `modelflare` is the only declared channel and its model list is blank, the backend defaults to `openai/gpt-6.1-sol` if no primary model is configured; otherwise it reuses `LITELLM_MODEL` and OpenAI-prefixed fallback routes. Use `openai/<model>` for the primary model. An explicit channel list takes precedence; multi-channel setups must declare each channel's models. Inference does not rewrite saved configuration or change model selection.
 

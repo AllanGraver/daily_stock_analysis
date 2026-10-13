@@ -2,7 +2,10 @@
 """Tests for env-based LLM channel parsing."""
 
 import os
+import json
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 from tests.litellm_stub import ensure_litellm_stub
@@ -19,6 +22,7 @@ from src.config import (
     get_effective_agent_primary_model,
     get_fixed_litellm_temperature,
     normalize_litellm_temperature,
+    resolve_llm_channel_names,
 )
 from src.llm.backend_registry import GENERATION_ONLY_BACKEND_IDS
 from src.llm.hermes import open_hermes_no_proxy_client, parse_hermes_channel, route_has_hermes
@@ -99,6 +103,51 @@ class LLMChannelConfigTestCase(unittest.TestCase):
                 self.assertEqual(dict(os.environ), env)
             self.assertEqual(config.litellm_model, "openai/gpt-6.1-sol")
             self.assertEqual(config.llm_channels[0]["models"], ["openai/gpt-6.1-sol"])
+
+    @patch("src.config.setup_env")
+    @patch.object(Config, "_parse_litellm_yaml", return_value=[])
+    def test_modelflare_one_key_uses_shared_channel_without_persisting(self, _yaml, _setup) -> None:
+        for field in ("MODELFLARE_KEY", "LLM_MODELFLARE_API_KEY", "LLM_MODELFLARE_API_KEYS"):
+            env = {field: "sk-test"}
+            with self.subTest(field=field), patch.dict(os.environ, env, clear=True):
+                config = Config._load_from_env()
+                self.assertEqual(dict(os.environ), env)
+            self.assertEqual(config.llm_models_source, "llm_channels")
+            self.assertEqual(config.litellm_model, "openai/gpt-6.1-sol")
+            self.assertEqual(config.llm_model_list[0]["litellm_params"]["api_base"], "https://modelflare.dev/v1")
+            self.assertEqual(config.llm_model_list[0]["litellm_params"]["api_key"], "sk-test")
+
+    def test_modelflare_one_key_does_not_append_to_explicit_channels_or_accept_blank_keys(self) -> None:
+        self.assertEqual(resolve_llm_channel_names({"MODELFLARE_KEY": " ,  "}), "")
+        self.assertEqual(resolve_llm_channel_names({"MODELFLARE_KEY": "sk-test", "LLM_CHANNELS": "other"}), "other")
+        with patch.dict(os.environ, {
+            "MODELFLARE_KEY": "sk-short", "LLM_MODELFLARE_API_KEY": "sk-explicit",
+        }, clear=True):
+            self.assertEqual(Config._parse_llm_channels("modelflare")[0]["api_keys"], ["sk-explicit"])
+        with patch.dict(os.environ, {
+            "MODELFLARE_KEY": "sk-short", "LLM_MODELFLARE_ENABLED": "false",
+        }, clear=True):
+            self.assertEqual(Config._parse_llm_channels("modelflare"), [])
+
+    @patch("src.config.setup_env")
+    def test_modelflare_one_key_does_not_override_yaml_or_explicit_other_channel(self, _setup) -> None:
+        yaml_routes = [{"model_name": "openai/yaml-model", "litellm_params": {
+            "model": "openai/yaml-model", "api_key": "sk-yaml", "api_base": "https://yaml.example/v1",
+        }}]
+        with tempfile.TemporaryDirectory() as temp:
+            yaml_path = Path(temp) / "models.yaml"
+            yaml_path.write_text(json.dumps({"model_list": yaml_routes}), encoding="utf-8")
+            with patch.dict(os.environ, {"MODELFLARE_KEY": "sk-short", "LITELLM_CONFIG": str(yaml_path)}, clear=True):
+                config = Config._load_from_env()
+        self.assertEqual(config.llm_models_source, "litellm_config")
+        self.assertEqual(config.litellm_model, "openai/yaml-model")
+        with patch.dict(os.environ, {
+            "MODELFLARE_KEY": "sk-short", "LLM_CHANNELS": "other",
+            "LLM_OTHER_API_KEY": "sk-other", "LLM_OTHER_MODELS": "other-model", "LLM_OTHER_PROTOCOL": "openai",
+        }, clear=True), patch.object(Config, "_parse_litellm_yaml", return_value=[]):
+            config = Config._load_from_env()
+        self.assertEqual(config.litellm_model, "openai/other-model")
+        self.assertEqual([channel["name"] for channel in config.llm_channels], ["other"])
 
     @patch("src.config.setup_env")
     @patch.object(Config, "_parse_litellm_yaml", return_value=[])

@@ -642,6 +642,38 @@ describe('LLMChannelEditor', () => {
     expect(update).not.toHaveBeenCalled();
   });
 
+  it('loads MODELFLARE_KEY alone and saves a key edit without persisting inferred defaults', async () => {
+    update.mockResolvedValue({ success: true, configVersion: 'v2', appliedCount: 1,
+      skippedMaskedCount: 0, reloadTriggered: true, updatedKeys: ['MODELFLARE_KEY'], warnings: [] });
+    render(<LLMChannelEditor items={[
+      { key: 'MODELFLARE_KEY', value: 'sk-existing', rawValueExists: true },
+    ]} configVersion="v1" maskToken="******" onSaved={() => {}} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Modelflare（聚合平台）/i }));
+    expect(screen.getByLabelText('API Key')).toHaveValue('sk-existing');
+    expect(screen.getByLabelText('模型（逗号分隔）')).toHaveValue('openai/gpt-6.1-sol');
+    expect(update).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('API Key'), { target: { value: 'sk-new' } });
+    fireEvent.click(screen.getByRole('button', { name: '保存 AI 配置' }));
+    await waitFor(() => expect(update).toHaveBeenCalled());
+    expect(update.mock.calls[0][0].items).toEqual([{ key: 'MODELFLARE_KEY', value: 'sk-new' }]);
+  });
+
+  it('does not append Modelflare to explicitly declared channels when its shorthand key exists', () => {
+    render(<LLMChannelEditor items={[
+      ...openAiItems, { key: 'MODELFLARE_KEY', value: 'sk-existing' },
+    ]} configVersion="v1" maskToken="******" onSaved={() => {}} />);
+    expect(screen.queryByRole('button', { name: /Modelflare（聚合平台）/i })).not.toBeInTheDocument();
+  });
+
+  it('clears the shorthand key when removing its inferred channel', async () => {
+    const onDraftItemsChange = vi.fn();
+    render(<LLMChannelEditor items={[
+      { key: 'MODELFLARE_KEY', value: 'sk-existing', rawValueExists: true },
+    ]} configVersion="v1" maskToken="******" onSaved={() => {}} onDraftItemsChange={onDraftItemsChange} />);
+    fireEvent.click(screen.getByRole('button', { name: '✕' }));
+    await waitFor(() => expect(lastDraftCall(onDraftItemsChange)).toContainEqual({ key: 'MODELFLARE_KEY', value: '' }));
+  });
+
   it('shows the tracked registration link beside the provider selection only for Modelflare', () => {
     render(
       <LLMChannelEditor

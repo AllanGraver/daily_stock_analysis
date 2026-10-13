@@ -57,7 +57,7 @@ Go to your forked repo → `Settings` → `Secrets and variables` → `Actions` 
 
 | Secret Name | Description | Required |
 |------------|------|:----:|
-| `LLM_MODELFLARE_API_KEY` | [Modelflare](https://modelflare.dev/sign-up?utm_source=github&utm_campaign=daily_stock_analysis) API key; use it with the Channels example below | Recommended |
+| `MODELFLARE_KEY` | [Modelflare](https://modelflare.dev/sign-up?utm_source=github&utm_campaign=daily_stock_analysis) API key; supplies the default endpoint and model automatically | Recommended |
 | `AIHUBMIX_KEY` | [AIHubMix](https://inferera.com/?aff=CfMq) API key, one key for multiple model families and a 10% top-up discount for this project | Recommended |
 | `GEMINI_API_KEY` | Get free key from [Google AI Studio](https://aistudio.google.com/) | Optional |
 | `ANTHROPIC_API_KEY` | Anthropic Claude API Key | Optional |
@@ -66,7 +66,7 @@ Go to your forked repo → `Settings` → `Secrets and variables` → `Actions` 
 | `OPENAI_MODEL` | Model name (e.g., `deepseek-v4-flash`) | Optional |
 | `ANSPIRE_API_KEYS` | Legacy compatibility entry for existing Anspire search and LLM shared-key setups; model access depends on account permissions | Optional |
 
-> *Note: Configure at least one model key or channel. For Modelflare, set `LLM_CHANNELS=modelflare`, your `LLM_MODELFLARE_API_KEY`, with an optional `LITELLM_MODEL` override (single-channel default: `openai/gpt-6.1-sol`); the endpoint defaults to `https://modelflare.dev/v1`; see the complete [LLM Config Guide example](LLM_CONFIG_GUIDE_EN.md#example-modelflare). Available models depend on your account. Startup validation reports a clear error when no usable AI model key or model channel is configured.
+> *Note: Configure at least one model key or channel. For Modelflare, set only `MODELFLARE_KEY`, with an optional `LITELLM_MODEL` override (single-channel default: `openai/gpt-6.1-sol`); the endpoint defaults to `https://modelflare.dev/v1`; see the complete [LLM Config Guide example](LLM_CONFIG_GUIDE_EN.md#example-modelflare). Available models depend on your account. Startup validation reports a clear error when no usable AI model key or model channel is configured.
 
 #### Notification Channels (Multiple can be configured, all will receive notifications)
 
@@ -236,7 +236,8 @@ Default schedule: Every weekday at **18:00 (Beijing Time)** automatic execution.
 | `AGENT_CONTEXT_PROTECTED_TURNS` | Number of recent user turns and following replies kept verbatim; blank follows the selected profile preset | - | No |
 | `LITELLM_FALLBACK_MODELS` | Fallback models, comma-separated | - | No |
 | `LLM_CHANNELS` | Channel names (comma-separated), use with `LLM_{NAME}_*`, see [LLM Config Guide](LLM_CONFIG_GUIDE_EN.md) | - | No |
-| `LLM_MODELFLARE_API_KEY` | Modelflare channel key (use `LLM_MODELFLARE_API_KEYS` for multiple keys); Actions reads it from Secrets only | - | For Modelflare |
+| `MODELFLARE_KEY` | Modelflare one-key setup; enables the default channel automatically; Actions reads it from Secrets only | - | For Modelflare |
+| `LLM_MODELFLARE_API_KEY` | Advanced channel key, overrides MODELFLARE_KEY; use `LLM_MODELFLARE_API_KEYS` for multiple keys | - | No |
 | `LLM_MODELFLARE_PROTOCOL` | Modelflare channel protocol; inferred as `openai` with the default endpoint | `openai` | No |
 | `LLM_MODELFLARE_API_SURFACE` | Modelflare API surface; the quickstart example uses `chat_completions` | `chat_completions` | No |
 | `LLM_MODELFLARE_BASE_URL` | Modelflare endpoint; explicit values override the default | `https://modelflare.dev/v1` | No |
