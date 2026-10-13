@@ -33,10 +33,11 @@ from src.agent.executor import (
     LEGACY_DEFAULT_AGENT_SYSTEM_PROMPT,
     AgentExecutor,
     AgentResult,
+    prepare_agent_chat,
 )
 from src.agent.llm_adapter import LLMResponse, ToolCall
 from src.agent.runner import parse_dashboard_json, run_agent_loop, serialize_tool_result
-from src.agent.stock_scope import StockScope, resolve_stock_scope
+from src.agent.stock_scope import StockScope, StockScopeResolution, resolve_stock_scope
 from src.agent.tools.registry import ToolRegistry, ToolDefinition, ToolParameter
 from src.analysis_context_pack_prompt import format_analysis_context_pack_prompt_section
 from src.config import Config
@@ -2170,6 +2171,55 @@ class TestAgentResult(unittest.TestCase):
         self.assertEqual(r.total_steps, 0)
         self.assertEqual(r.total_tokens, 0)
         self.assertIsNone(r.error)
+
+
+class PrepareAgentChatWebIntentRenderingTest(unittest.TestCase):
+    """Web intent confirmed-target rendering (issue #2239 PR-4)."""
+
+    def _prepare(self, effective_context, scope):
+        with patch(
+            "src.agent.executor.build_agent_chat_context_bundle",
+            return_value=SimpleNamespace(context_messages=[], diagnostics={}),
+        ):
+            return prepare_agent_chat(
+                message="港股", session_id="session-intent", context=None,
+                config=SimpleNamespace(), context_llm_adapter=None,
+                skill_instructions="", default_skill_policy="",
+                use_legacy_default_prompt=False, use_codex_prompt=False,
+                include_provider_trace=True,
+                scope_resolution=StockScopeResolution(effective_context, scope),
+            )
+
+    def test_renders_confirmed_line_for_multi_stock_compare_turn(self):
+        prepared = self._prepare(
+            {
+                "web_intent_resolved_stocks": [
+                    {"code": "HK09988", "name": "阿里巴巴"},
+                    {"code": "HK00700", "name": "腾讯控股"},
+                ],
+            },
+            StockScope(mode="compare", allowed_stock_codes={"HK09988", "HK00700"}),
+        )
+        history = "\n".join(
+            msg["content"] for msg in prepared.history_messages if msg["role"] == "user"
+        )
+        self.assertIn("本轮已确认的分析标的: HK09988、HK00700", history)
+
+    def test_single_confirmed_stock_keeps_legacy_rendering_only(self):
+        prepared = self._prepare(
+            {
+                "stock_code": "600519",
+                "stock_name": "贵州茅台",
+                "web_intent_resolved_stocks": [{"code": "600519", "name": "贵州茅台"}],
+            },
+            StockScope(expected_stock_code="600519", allowed_stock_codes={"600519"}, mode="switch"),
+        )
+        history = "\n".join(
+            msg["content"] for msg in prepared.history_messages if msg["role"] == "user"
+        )
+        self.assertIn("股票代码: 600519", history)
+        self.assertIn("股票名称: 贵州茅台", history)
+        self.assertNotIn("本轮已确认的分析标的", history)
 
 
 if __name__ == '__main__':

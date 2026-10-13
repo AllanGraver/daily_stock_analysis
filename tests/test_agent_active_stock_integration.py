@@ -1025,6 +1025,9 @@ def actual_chat_api(db, chat_stock_index, monkeypatch, tmp_path):
     config.agent_arch = "single"
     config.agent_skills = ["ma_golden_cross"]
     config.agent_context_compression_enabled = False
+    # 意图层有自己的契约测试（test_agent_chat_intent_stream.py）；这里关闭，
+    # 保持讨论对象语义断言聚焦在既有事件序列上。
+    monkeypatch.setattr(config, "agent_web_intent_enabled", False)
     monkeypatch.setattr(config, "is_agent_available", lambda: True)
     monkeypatch.setattr(agent, "get_config", lambda: config)
     monkeypatch.setattr("api.middlewares.auth.is_auth_enabled", lambda: False)

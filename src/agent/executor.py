@@ -633,6 +633,20 @@ def prepare_agent_chat(
         )
         if market_structure_section:
             context_parts.append(market_structure_section.strip())
+        # 意图层确认/解析的多标的轮：工具作用域只放行这些代码，而多标的
+        # 比较不落 stock_code，必须显式告知后端本轮标的（单标的轮由上方
+        # 股票代码/名称行覆盖，不重复渲染）。
+        intent_stocks = effective_context.get("web_intent_resolved_stocks")
+        if isinstance(intent_stocks, list):
+            intent_codes = [
+                code for code in (
+                    str(item.get("code") or "").strip()
+                    if isinstance(item, dict) else ""
+                    for item in intent_stocks
+                ) if code
+            ]
+            if len(intent_codes) > 1:
+                context_parts.append("本轮已确认的分析标的: " + "、".join(intent_codes))
         if context_parts:
             history_messages.extend(
                 [
