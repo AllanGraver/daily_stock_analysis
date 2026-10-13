@@ -1704,7 +1704,7 @@ export const LLMChannelEditor: React.FC<LLMChannelEditorProps> = ({
   const [capabilityStates, setCapabilityStates] = useState<Record<string, ChannelCapabilityState>>({});
   const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({});
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [addPreset, setAddPreset] = useState('aihubmix');
+  const [addPreset, setAddPreset] = useState(LLM_PROVIDER_TEMPLATES[0].channelId);
   const addChannelIdRef = useRef(0);
   const lastDraftFingerprintRef = useRef<string | null>(null);
   const onDraftItemsChangeRef = useRef(onDraftItemsChange);
@@ -2374,21 +2374,33 @@ export const LLMChannelEditor: React.FC<LLMChannelEditorProps> = ({
               </div>
               <Badge variant="default" className="border-[var(--settings-border)] bg-[var(--settings-surface-hover)] text-muted-text">{channels.length} 个渠道</Badge>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button type="button" variant="settings-primary" className="whitespace-nowrap" disabled={busy} onClick={addChannel}>
                 + 添加渠道
               </Button>
-              <Select
-                value={addPreset}
-                onChange={setAddPreset}
-                options={LLM_PROVIDER_TEMPLATES.map((preset) => ({
-                  value: preset.channelId,
-                  label: preset.label,
-                }))}
-                disabled={busy}
-                placeholder="选择服务商"
-                className="flex-1"
-              />
+              <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:flex-1">
+                <Select
+                  value={addPreset}
+                  onChange={setAddPreset}
+                  options={LLM_PROVIDER_TEMPLATES.map((preset) => ({
+                    value: preset.channelId,
+                    label: preset.label,
+                  }))}
+                  disabled={busy}
+                  placeholder="选择服务商"
+                  className="min-w-0 flex-1"
+                />
+                {addPreset === 'modelflare' ? (
+                  <a
+                    href="https://modelflare.dev/sign-up?utm_source=daily_stock_analysis&utm_campaign=app"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="settings-button-secondary inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border px-3 text-sm font-medium transition-all duration-200 hover:translate-y-[-1px] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-cyan/15"
+                  >
+                    注册 Modelflare
+                  </a>
+                ) : null}
+              </div>
             </div>
           </div>
 

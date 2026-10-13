@@ -50,6 +50,20 @@ export const LLM_PROVIDER_CAPABILITY_LABELS: Record<LLMProviderCapability, { lab
 
 export const LLM_PROVIDER_TEMPLATES: LLMProviderTemplate[] = [
   {
+    channelId: 'modelflare',
+    label: 'Modelflare（聚合平台）',
+    protocol: 'openai',
+    baseUrl: 'https://modelflare.dev/v1',
+    placeholderModels: 'gpt-5.6-sol',
+    capabilities: ['openai-compatible', 'aggregator', 'model-discovery'],
+    configHint:
+      'API Key 的路由分组需支持所选模型；模型 ID 请以控制台或获取模型的结果为准。Base URL 使用 /v1，不额外拼接 /chat/completions。',
+    officialSources: [
+      { label: 'Modelflare Docs', url: 'https://docs.modelflare.dev/' },
+      { label: 'Modelflare Models & Pricing', url: 'https://modelflare.dev/pricing' },
+    ],
+  },
+  {
     channelId: 'aihubmix',
     label: 'AIHubmix（聚合平台）',
     protocol: 'openai',
@@ -60,7 +74,7 @@ export const LLM_PROVIDER_TEMPLATES: LLMProviderTemplate[] = [
   },
   {
     channelId: 'anspire',
-    label: 'Anspire Open（一站式模型+搜索）',
+    label: 'Anspire Open',
     protocol: 'openai',
     baseUrl: 'https://open-gateway.anspire.cn/v6',
     placeholderModels: 'Doubao-Seed-2.0-lite,Doubao-Seed-2.0-pro,qwen3.5-flash,MiniMax-M2.7',

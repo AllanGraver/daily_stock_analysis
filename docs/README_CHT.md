@@ -28,7 +28,19 @@
 
 <div align="center">
   <p align="center">
-    <a href="https://open.anspire.cn/dsa?share_code=QFBC0FYC" target="_blank"><img src="assets/anspire.png" alt="Anspire Open 一站式模型和搜尋服務" width="300" height="141" style="width: 300px; height: 141px; object-fit: contain;"></a>
+    <a href="https://modelflare.dev/sign-up?utm_source=github&amp;utm_campaign=daily_stock_analysis"><img src="assets/modelflare_banner.png" alt="Modelflare 穩定、低成本的大模型、圖像與影片 API" width="720"></a>
+  </p>
+  <p align="center">
+    <strong>感謝 Modelflare 贊助本項目！</strong><br>
+    穩定、低成本的模型 API，支援 GPT / Claude / Gemini / Grok。<a href="https://modelflare.dev/sign-up?utm_source=github&amp;utm_campaign=daily_stock_analysis">註冊使用</a>
+  </p>
+  <details>
+    <summary>查看模型、優惠與快取保障</summary>
+    <p>由美國 Havenbyte LLC 營運，統一接入熱門大模型及 40+ 圖像、影片模型。</p>
+    <p>指定 OpenAI 分組提供 65% / 75% / 85% 的每日快取命中率保障，按已結算用量統計；符合條件的未達標差額退款。用量、快取率、實際費用與差額退款可在控制台查看。</p>
+    <p>單筆儲值 US$20 可解鎖 GPT 0.015x；單筆儲值 US$50 可解鎖 Claude 0.03x。具體模型、分組、儲值與保障條件請查看 <a href="https://modelflare.dev/sign-up?utm_source=github&amp;utm_campaign=daily_stock_analysis">Modelflare 平台說明</a>。</p>
+  </details>
+  <p align="center">
     <a href="https://serpapi.com/github-daily-stock-analysis" target="_blank"><img src="assets/serpapi_banner_zh.png" alt="輕鬆抓取搜尋引擎上的即時金融新聞數據 - SerpApi" width="300" height="141" style="width: 300px; height: 141px; object-fit: contain;"></a>
   </p>
 </div>
@@ -56,7 +68,7 @@
 
 | 類型 | 支援 |
 |------|------|
-| AI 模型 | [Anspire](https://open.anspire.cn/dsa?share_code=QFBC0FYC)、[AIHubMix](https://inferera.com/?aff=CfMq)、Gemini、OpenAI 兼容、DeepSeek、通義千問、Claude、Ollama 本地模型等 |
+| AI 模型 | [Modelflare](https://modelflare.dev/sign-up?utm_source=github&utm_campaign=daily_stock_analysis)、[AIHubMix](https://inferera.com/?aff=CfMq)、Gemini、OpenAI 兼容、DeepSeek、通義千問、Claude、Ollama 本地模型等 |
 | 行情數據 | [TickFlow](https://tickflow.org/auth/register?ref=WDSGSPS5XC)、AkShare、Tushare、Pytdx、Baostock、YFinance、Longbridge |
 | 新聞搜尋 | [Anspire](https://open.anspire.cn/dsa?share_code=QFBC0FYC)、[SerpAPI](https://serpapi.com/github-daily-stock-analysis)、[Tavily](https://tavily.com/)、[Bocha](https://open.bocha.cn/)、[Brave](https://brave.com/search/api/)、[MiniMax](https://platform.minimaxi.com/)、SearXNG |
 | 社交輿情 | [Stock Sentiment API](https://api.adanos.org/docs)（Reddit / X / Polymarket，僅美股，可選） |
@@ -79,11 +91,12 @@
 
 **AI 模型配置（至少配置一個）**
 
-預設先選一個模型服務商並填寫 API Key；需要多模型、圖片識別、本地模型或高級路由時，再參考 [LLM 配置指南](./LLM_CONFIG_GUIDE.md)。
+先選一個模型服務商並完成對應配置；Modelflare 使用以下渠道配置，其他服務商可填寫對應 API Key。渠道配置與兼容 Key 配置擇一使用，詳細步驟及高級路由見 [LLM 配置指南](./LLM_CONFIG_GUIDE.md)。
 
 | Secret 名稱 | 說明 | 必填 |
 |-------------|------|:----:|
-| `ANSPIRE_API_KEYS` | [Anspire](https://open.anspire.cn/dsa?share_code=QFBC0FYC) API Key，一 Key 同時啟用全球熱門大模型和聯網搜尋，含本項目免費額度 | **推薦** |
+| `LLM_CHANNELS` / `LLM_MODELFLARE_API_KEY` | [Modelflare](https://modelflare.dev/sign-up?utm_source=github&utm_campaign=daily_stock_analysis)：設定 `LLM_CHANNELS=modelflare`，並填入 Modelflare API Key | **推薦** |
+| `LLM_MODELFLARE_BASE_URL` / `LLM_MODELFLARE_MODELS` | 按 [LLM 配置指南](./LLM_CONFIG_GUIDE.md) 填寫接入地址與模型 ID（如 `gpt-5.6-sol`） | 使用 Modelflare 時必填 |
 | `AIHUBMIX_KEY` | [AIHubMix](https://inferera.com/?aff=CfMq) API Key，一 Key 切換使用全系模型，本項目可享 10% 優惠 | **推薦** |
 | `GEMINI_API_KEY` | Google Gemini API Key | 可選 |
 | `ANTHROPIC_API_KEY` | Anthropic Claude API Key | 可選 |

@@ -595,6 +595,92 @@ describe('LLMChannelEditor', () => {
     expect(within(visionModelSelect).getByRole('option', { name: 'minimax/MiniMax-M1' })).toBeInTheDocument();
   });
 
+  it('starts with Modelflare and creates its OpenAI-compatible channel draft', async () => {
+    render(
+      <LLMChannelEditor
+        items={[]}
+        configVersion="v1"
+        maskToken="******"
+        onSaved={() => {}}
+      />
+    );
+
+    const providerSelect = screen.getByRole('combobox', { name: '' });
+    expect(providerSelect).toHaveValue('modelflare');
+    expect(within(providerSelect).getAllByRole('option').filter((option) => (
+      (option as HTMLOptionElement).value !== ''
+    ))[0]).toHaveValue('modelflare');
+    fireEvent.click(screen.getByRole('button', { name: '+ 添加渠道' }));
+
+    await screen.findByRole('button', { name: /Modelflare（聚合平台）/i });
+    expect(screen.getByLabelText('渠道名称')).toHaveValue('modelflare');
+    expect(screen.getByLabelText('Base URL')).toHaveValue('https://modelflare.dev/v1');
+    expect(screen.getByLabelText('模型（逗号分隔）')).toHaveValue('gpt-5.6-sol');
+    expect(screen.getByLabelText('API Key')).toHaveValue('');
+  });
+
+  it('shows the tracked registration link beside the provider selection only for Modelflare', () => {
+    render(
+      <LLMChannelEditor
+        items={[]}
+        configVersion="v1"
+        maskToken="******"
+        onSaved={() => {}}
+      />
+    );
+
+    const providerSelect = screen.getByRole('combobox', { name: '' });
+    const registrationLink = screen.getByRole('link', { name: '注册 Modelflare' });
+    expect(registrationLink).toHaveAttribute(
+      'href',
+      'https://modelflare.dev/sign-up?utm_source=daily_stock_analysis&utm_campaign=app',
+    );
+    expect(registrationLink).toHaveAttribute('target', '_blank');
+    expect(registrationLink).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(registrationLink.parentElement).toContainElement(providerSelect);
+
+    for (const provider of ['anspire', 'aihubmix', 'deepseek', 'custom']) {
+      fireEvent.change(providerSelect, { target: { value: provider } });
+      expect(screen.queryByRole('link', { name: '注册 Modelflare' })).not.toBeInTheDocument();
+    }
+
+    fireEvent.change(providerSelect, { target: { value: 'modelflare' } });
+    expect(screen.getAllByRole('link', { name: '注册 Modelflare' })).toHaveLength(1);
+  });
+
+  it('preserves saved Anspire settings when selecting the new Modelflare preset', async () => {
+    const onDraftItemsChange = vi.fn();
+    render(
+      <LLMChannelEditor
+        items={[
+          { key: 'LLM_CHANNELS', value: 'anspire' },
+          { key: 'LLM_ANSPIRE_PROTOCOL', value: 'openai' },
+          { key: 'LLM_ANSPIRE_BASE_URL', value: 'https://existing.example.com/v1' },
+          { key: 'LLM_ANSPIRE_ENABLED', value: 'true' },
+          { key: 'LLM_ANSPIRE_API_KEY', value: 'existing-key' },
+          { key: 'LLM_ANSPIRE_MODELS', value: 'existing-model' },
+        ]}
+        configVersion="v1"
+        maskToken="******"
+        onSaved={() => {}}
+        onDraftItemsChange={onDraftItemsChange}
+      />
+    );
+
+    const providerSelect = screen.getByRole('combobox', { name: '' });
+    fireEvent.change(providerSelect, { target: { value: 'anspire' } });
+    expect(screen.queryByRole('link', { name: '注册 Modelflare' })).not.toBeInTheDocument();
+    fireEvent.change(providerSelect, { target: { value: 'modelflare' } });
+    fireEvent.click(screen.getByRole('button', { name: /Anspire Open/i }));
+
+    expect(await screen.findByLabelText('渠道名称')).toHaveValue('anspire');
+    expect(screen.getByLabelText('Base URL')).toHaveValue('https://existing.example.com/v1');
+    expect(screen.getByLabelText('API Key')).toHaveValue('existing-key');
+    expect(screen.getByLabelText('模型（逗号分隔）')).toHaveValue('existing-model');
+    await waitFor(() => expect(onDraftItemsChange).toHaveBeenLastCalledWith([]));
+    expect(update).not.toHaveBeenCalled();
+  });
+
   it('uses DeepSeek V4 defaults when adding the official preset', async () => {
     render(
       <LLMChannelEditor
