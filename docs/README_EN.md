@@ -28,7 +28,8 @@ English | [简体中文](../README.md) | [繁體中文](README_CHT.md)
 <summary><strong>💖 Sponsors</strong></summary>
 <div align="center">
   <p><a href="https://modelflare.dev/sign-up?utm_source=github&amp;utm_campaign=daily_stock_analysis"><img src="assets/modelflare_banner.png" alt="Modelflare" width="600"></a></p>
-  <p>Thanks to Modelflare! Stable, lower-cost GPT / Claude / Gemini / Grok API. <a href="https://modelflare.dev/sign-up?utm_source=github&amp;utm_campaign=daily_stock_analysis">Sign up</a> · <a href="https://docs.modelflare.dev/guides/features/cache-guarantee/">Cache guarantee terms</a></p>
+  <p>Thanks to Modelflare for sponsoring this project! Full strength, stable, nothing watered down—global SOTA models at a lower cost. Operated by US-based Havenbyte LLC, Modelflare supports GPT, Claude, Gemini, Grok and other leading models through common compatible protocols, plus 40+ image and video models.</p>
+  <p>Cache compensation: selected OpenAI price-first, stable and premium groups guarantee daily cache hit rates of 65% / 75% / 85%. Eligible shortfalls are compensated after settlement and shown on the usage dashboard. A single US$20 top-up unlocks the GPT discount group at 0.015x; US$50 unlocks the Claude discount group at 0.03x. <a href="https://modelflare.dev/sign-up?utm_source=github&amp;utm_campaign=daily_stock_analysis">Register via this exclusive link</a> · <a href="https://docs.modelflare.dev/guides/features/cache-guarantee/">Cache guarantee terms</a></p>
   <p>
     <a href="https://serpapi.com/github-daily-stock-analysis" target="_blank"><img src="assets/serpapi_banner_en.png" alt="Easily scrape real-time financial news data from search engines - SerpApi" width="300" height="141" style="width: 300px; height: 141px; object-fit: contain;"></a>
   </p>

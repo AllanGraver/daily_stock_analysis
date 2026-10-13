@@ -26,7 +26,8 @@
 <summary><strong>💖 赞助商 (Sponsors)</strong></summary>
 <div align="center">
   <p><a href="https://modelflare.dev/sign-up?utm_source=github&amp;utm_campaign=daily_stock_analysis"><img src="./docs/assets/modelflare_banner.png" alt="Modelflare" width="600"></a></p>
-  <p>感谢 Modelflare 赞助！稳定、低成本的 GPT / Claude / Gemini / Grok API。 <a href="https://modelflare.dev/sign-up?utm_source=github&amp;utm_campaign=daily_stock_analysis">注册使用</a> · <a href="https://docs.modelflare.dev/guides/features/cache-guarantee/">缓存保障条件</a></p>
+  <p>感谢 Modelflare 赞助本项目！满血稳定不掺水，低成本享受全球 SOTA 模型。由美国 Havenbyte LLC 运营，支持 GPT、Claude、Gemini、Grok 等主流模型与常用兼容协议，以及 40+ 图片和视频模型。</p>
+  <p>缓存补偿：部分 OpenAI 价格优先、稳定、高级分组分别提供每日 65% / 75% / 85% 缓存命中率保障，符合条件的请求未达标时补偿差额，结算后可在用量看板查看。单笔充值 US$20 可解锁 GPT 0.015x 特惠分组，US$50 可解锁 Claude 0.03x 特惠分组。<a href="https://modelflare.dev/sign-up?utm_source=github&amp;utm_campaign=daily_stock_analysis">专属链接注册</a> · <a href="https://docs.modelflare.dev/guides/features/cache-guarantee/">缓存保障条件</a></p>
   <p>
     <a href="https://serpapi.com/github-daily-stock-analysis" target="_blank"><img src="./docs/assets/serpapi_banner_zh.png" alt="轻松抓取搜索引擎上的实时金融新闻数据 - SerpApi" width="300" height="141" style="width: 300px; height: 141px; object-fit: contain;"></a>
   </p>
