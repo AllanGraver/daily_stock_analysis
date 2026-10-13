@@ -1,6 +1,6 @@
 # Modelflare visual evidence
 
-Captured on 2026-10-13 for product commit `c160a0ce96aff90233f511eed27a107aa749f0ff`.
+README captured on 2026-10-13 for product commit `f92174941bd3e2971d9a8758ae3efdc5ffe650af`. Web screenshots were captured for `c160a0ce96aff90233f511eed27a107aa749f0ff`; Web and backend code are unchanged in the subsequent documentation-only commit.
 
 - README screenshots: actual GitHub rendering of that commit in Simplified Chinese, Traditional Chinese and English. Default expanded state, collapse/reopen verified. Desktop viewport: 1274 × 900; mobile viewport: 390 × 844.
 - Before screenshot: original product commit `7c7608cde85cbf5f2d943978ab433e7b769cc46b`, same desktop viewport, old sponsor details expanded. Captures are cropped to the affected sponsor section.
