@@ -1472,7 +1472,13 @@ function parseChannelsFromItems(
   return channelNames.map((name, index) => {
     const upperName = name.toUpperCase();
     const baseUrl = itemMap.get(`LLM_${upperName}_BASE_URL`) || '';
-    const rawModels = itemMap.get(`LLM_${upperName}_MODELS`) || '';
+    const primaryModel = (itemMap.get('LITELLM_MODEL') || '').trim();
+    const inheritedModels = channelNames.length === 1 && upperName === 'MODELFLARE'
+      && primaryModel.startsWith('openai/') && primaryModel.slice(7).trim()
+      ? [...new Set([primaryModel, ...splitModels(itemMap.get('LITELLM_FALLBACK_MODELS') || '')]
+        .filter((model) => model.startsWith('openai/') && model.slice(7).trim()))]
+      : [];
+    const rawModels = (itemMap.get(`LLM_${upperName}_MODELS`) || '').trim() || inheritedModels.join(',');
     const models = splitModels(rawModels);
 
     return {

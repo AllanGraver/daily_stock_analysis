@@ -622,6 +622,17 @@ describe('LLMChannelEditor', () => {
     );
   });
 
+  it('shows inherited Modelflare models from existing global settings without auto-saving', async () => {
+    render(<LLMChannelEditor items={[
+      { key: 'LLM_CHANNELS', value: 'modelflare' },
+      { key: 'LITELLM_MODEL', value: 'openai/account-model' },
+      { key: 'LITELLM_FALLBACK_MODELS', value: 'openai/fallback-model' },
+    ]} configVersion="v1" maskToken="******" onSaved={() => {}} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Modelflare（聚合平台）/i }));
+    expect(screen.getByLabelText('模型（逗号分隔）')).toHaveValue('openai/account-model,openai/fallback-model');
+    expect(update).not.toHaveBeenCalled();
+  });
+
   it('shows the tracked registration link beside the provider selection only for Modelflare', () => {
     render(
       <LLMChannelEditor

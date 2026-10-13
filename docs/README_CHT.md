@@ -28,8 +28,7 @@
 <summary><strong>💖 贊助商 (Sponsors)</strong></summary>
 <div align="center">
   <p><a href="https://modelflare.dev/sign-up?utm_source=github&amp;utm_campaign=daily_stock_analysis"><img src="assets/modelflare_banner.png" alt="Modelflare" width="600"></a></p>
-  <p>感謝 Modelflare 贊助本項目！滿血穩定不摻水，低成本享受全球 SOTA 模型。由美國 Havenbyte LLC 營運，支援 GPT、Claude、Gemini、Grok 等主流模型與常用兼容協議，以及 40+ 圖片和影片模型。</p>
-  <p>快取補償：部分 OpenAI 價格優先、穩定、高級分組分別提供每日 65% / 75% / 85% 快取命中率保障，符合條件的請求未達標時補償差額，結算後可在用量看板查看。單筆儲值 US$20 可解鎖 GPT 0.015x 特惠分組，US$50 可解鎖 Claude 0.03x 特惠分組。<a href="https://modelflare.dev/sign-up?utm_source=github&amp;utm_campaign=daily_stock_analysis">專屬連結註冊</a> · <a href="https://docs.modelflare.dev/guides/features/cache-guarantee/">快取保障條件</a></p>
+  <p>感謝 <strong>Modelflare</strong> 贊助本項目！由美國 Havenbyte LLC 營運，滿血穩定不摻水，低成本接入 GPT、Claude、Gemini、Grok 及 40+ 圖片/影片模型。指定 OpenAI 分組提供 <strong>65% / 75% / 85% 每日快取命中率保障</strong>；單筆儲值 <strong>US$20 解鎖 GPT 0.015x</strong>，<strong>US$50 解鎖 Claude 0.03x</strong>。<a href="https://modelflare.dev/sign-up?utm_source=github&amp;utm_campaign=daily_stock_analysis">專屬連結註冊</a></p>
   <p>
     <a href="https://serpapi.com/github-daily-stock-analysis" target="_blank"><img src="assets/serpapi_banner_zh.png" alt="輕鬆抓取搜尋引擎上的即時金融新聞數據 - SerpApi" width="300" height="141" style="width: 300px; height: 141px; object-fit: contain;"></a>
   </p>
@@ -87,7 +86,7 @@
 | Secret 名稱 | 說明 | 必填 |
 |-------------|------|:----:|
 | `LLM_CHANNELS` / `LLM_MODELFLARE_API_KEY` | [Modelflare](https://modelflare.dev/sign-up?utm_source=github&utm_campaign=daily_stock_analysis)：設定 `LLM_CHANNELS=modelflare`，並填入 Modelflare API Key | **推薦** |
-| `LLM_MODELFLARE_MODELS` | 填寫帳號可用模型，如 `gpt-5.6-sol`；接入位址自動使用預設值 | 使用 Modelflare 時必填 |
+| `LITELLM_MODEL` | 使用現有主模型配置，如 `openai/gpt-5.6-sol`；接入位址和單渠道模型宣告由後端補齊 | 使用 Modelflare 時必填 |
 | `AIHUBMIX_KEY` | [AIHubMix](https://inferera.com/?aff=CfMq) API Key，一 Key 切換使用全系模型，本項目可享 10% 優惠 | **推薦** |
 | `GEMINI_API_KEY` | Google Gemini API Key | 可選 |
 | `ANTHROPIC_API_KEY` | Anthropic Claude API Key | 可選 |

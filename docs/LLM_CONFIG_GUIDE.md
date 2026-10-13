@@ -253,8 +253,10 @@ ANSPIRE_API_KEYS=sk-xxxxxxxxxxxxxxxx
 ```env
 LLM_CHANNELS=modelflare
 LLM_MODELFLARE_API_KEY=sk-xxx
-LLM_MODELFLARE_MODELS=gpt-5.6-sol
+LITELLM_MODEL=openai/gpt-5.6-sol
 ```
+
+只声明 `modelflare` 一个渠道且未填渠道模型列表时，后端复用 `LITELLM_MODEL` 和带 `openai/` 前缀的备用模型；主模型使用 `openai/<模型名>`。显式 `LLM_MODELFLARE_MODELS` 优先，多渠道仍需分别声明模型。推导不改写已保存配置或模型选择。
 
 渠道名为 `modelflare` 时，未填写或留空的接入地址自动使用 `https://modelflare.dev/v1`；显式 `LLM_MODELFLARE_BASE_URL` 优先。该地址默认识别为 `openai` 协议，接口默认为 `chat_completions`；未设置 `LITELLM_MODEL` 时使用首个渠道模型。模型仍需明确填写并按账号权限选择，不自动添加模型或 legacy Key。
 

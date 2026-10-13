@@ -32,6 +32,34 @@ from src.services.system_config_service import SystemConfigService
 class LLMChannelConfigTestCase(unittest.TestCase):
     @patch("src.config.setup_env")
     @patch.object(Config, "_parse_litellm_yaml", return_value=[])
+    def test_modelflare_inherits_existing_primary_and_openai_fallback_routes(self, _yaml, _setup) -> None:
+        with patch.dict(os.environ, {
+            "LLM_CHANNELS": "Modelflare",
+            "LLM_MODELFLARE_API_KEY": "sk-test",
+            "LITELLM_MODEL": "openai/account-model",
+            "LITELLM_FALLBACK_MODELS": "openai/fallback-model,openai/account-model",
+        }, clear=True):
+            config = Config._load_from_env()
+            self.assertNotIn("LLM_MODELFLARE_MODELS", os.environ)
+        self.assertEqual(config.llm_channels[0]["models"], ["openai/account-model", "openai/fallback-model"])
+        self.assertEqual(config.litellm_model, "openai/account-model")
+        self.assertEqual(config.litellm_fallback_models, ["openai/fallback-model", "openai/account-model"])
+        self.assertEqual(config.llm_model_list[0]["litellm_params"]["api_base"], "https://modelflare.dev/v1")
+
+    def test_modelflare_inheritance_keeps_explicit_lists_and_channel_ownership(self) -> None:
+        base = {"LLM_MODELFLARE_API_KEY": "sk-test", "LITELLM_MODEL": "openai/account-model"}
+        with patch.dict(os.environ, {**base, "LLM_MODELFLARE_MODELS": "explicit-model"}, clear=True):
+            self.assertEqual(Config._parse_llm_channels("modelflare")[0]["models"], ["openai/explicit-model"])
+        for names, primary in [("modelflare,other", "openai/account-model"),
+                               ("modelflare", "anthropic/account-model"),
+                               ("modelflare", "router-alias")]:
+            with self.subTest(names=names, primary=primary), patch.dict(
+                os.environ, {**base, "LITELLM_MODEL": primary}, clear=True,
+            ):
+                self.assertEqual(Config._parse_llm_channels(names), [])
+
+    @patch("src.config.setup_env")
+    @patch.object(Config, "_parse_litellm_yaml", return_value=[])
     def test_modelflare_channel_defaults_and_explicit_overrides(self, _yaml, _setup) -> None:
         for base_url in (None, "   ", "https://custom.example/v1"):
             with self.subTest(base_url=base_url):

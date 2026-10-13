@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- [改进] 单 Modelflare 渠道可直接复用现有 LITELLM_MODEL 与 OpenAI 备用模型，后端统一推导模型声明，显式列表及多渠道规则保持优先；三语 README 赞助文案合为重点单段。
 - [修复] 模型设置预览、冒烟及保存的配置校验失败显示具体字段与修正提示，避免仅显示笼统请求失败；Modelflare 渠道说明补充客户端专属注册链接，与快速添加按钮共用 app UTM。
 - [改进] 新增首位 Modelflare LLM 渠道预设及条件注册链接，统一后端默认接入地址、简化三项配置，同步三语 README 紧凑赞助区（默认展开、可折叠，保留运营主体、模型范围、缓存补偿及充值优惠）和配置指南，保留 Anspire LLM 兼容、新闻搜索及 SerpAPI 赞助入口。
 - [修复] 当前 Bot 与 Web 交替问股复用服务端已确认对象及严格工具范围，普通追问／比较保留确认状态，切股进入待确认；Bot 提交校验快照版本及用户锚点，保留真正旧代码／旁路写入的保守失效边界。

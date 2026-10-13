@@ -2921,6 +2921,32 @@ class SystemConfigServiceTestCase(unittest.TestCase):
         self.assertEqual(self.env_path.read_text(encoding="utf-8"), before)
 
     @patch("litellm.completion")
+    def test_modelflare_existing_primary_model_supports_validation_preview_and_connection(self, completion) -> None:
+        self._rewrite_env(
+            "LLM_CHANNELS=modelflare", "LLM_MODELFLARE_API_KEY=sk-test",
+            "LITELLM_MODEL=openai/account-model", "LITELLM_FALLBACK_MODELS=openai/fallback-model",
+            "STOCK_LIST=600519",
+        )
+        before = self.env_path.read_text(encoding="utf-8")
+        completion.return_value = self._mock_completion_response()
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertTrue(self.service.validate(items=[])["valid"])
+            self.assertTrue(self.service.get_setup_status()["is_complete"])
+            self.assertTrue(self.service.preview_generation_backend_status(items=[])["primary"]["available"])
+            invalid = self.service.validate(items=[
+                {"key": "LITELLM_FALLBACK_MODELS", "value": "deepseek/other-model"},
+            ])
+            self.assertFalse(invalid["valid"])
+            self.assertTrue(any(issue["code"] == "unknown_model" for issue in invalid["issues"]))
+            result = self.service.test_llm_channel(
+                name="modelflare", protocol="openai", base_url="", api_key="sk-test", models=[],
+            )
+        self.assertTrue(result["success"], result)
+        self.assertEqual(result["resolved_model"], "openai/account-model")
+        self.assertEqual(completion.call_args.kwargs["api_base"], "https://modelflare.dev/v1")
+        self.assertEqual(self.env_path.read_text(encoding="utf-8"), before)
+
+    @patch("litellm.completion")
     @patch("src.services.system_config_service.requests.get")
     def test_modelflare_discovery_and_connection_apply_default_endpoint(self, get, completion) -> None:
         get.return_value = SimpleNamespace(

@@ -28,8 +28,7 @@ English | [简体中文](../README.md) | [繁體中文](README_CHT.md)
 <summary><strong>💖 Sponsors</strong></summary>
 <div align="center">
   <p><a href="https://modelflare.dev/sign-up?utm_source=github&amp;utm_campaign=daily_stock_analysis"><img src="assets/modelflare_banner.png" alt="Modelflare" width="600"></a></p>
-  <p>Thanks to Modelflare for sponsoring this project! Full strength, stable, nothing watered down—global SOTA models at a lower cost. Operated by US-based Havenbyte LLC, Modelflare supports GPT, Claude, Gemini, Grok and other leading models through common compatible protocols, plus 40+ image and video models.</p>
-  <p>Cache compensation: selected OpenAI price-first, stable and premium groups guarantee daily cache hit rates of 65% / 75% / 85%. Eligible shortfalls are compensated after settlement and shown on the usage dashboard. A single US$20 top-up unlocks the GPT discount group at 0.015x; US$50 unlocks the Claude discount group at 0.03x. <a href="https://modelflare.dev/sign-up?utm_source=github&amp;utm_campaign=daily_stock_analysis">Register via this exclusive link</a> · <a href="https://docs.modelflare.dev/guides/features/cache-guarantee/">Cache guarantee terms</a></p>
+  <p>Thanks to <strong>Modelflare</strong> for sponsoring this project! Operated by US-based Havenbyte LLC, it offers full-strength, stable GPT, Claude, Gemini, Grok and 40+ image/video models at lower cost. Selected OpenAI groups offer <strong>65% / 75% / 85% daily cache-hit guarantees</strong>; a single <strong>US$20 top-up unlocks GPT at 0.015x</strong>, and <strong>US$50 unlocks Claude at 0.03x</strong>. <a href="https://modelflare.dev/sign-up?utm_source=github&amp;utm_campaign=daily_stock_analysis">Register via this exclusive link</a></p>
   <p>
     <a href="https://serpapi.com/github-daily-stock-analysis" target="_blank"><img src="assets/serpapi_banner_en.png" alt="Easily scrape real-time financial news data from search engines - SerpApi" width="300" height="141" style="width: 300px; height: 141px; object-fit: contain;"></a>
   </p>
@@ -87,7 +86,7 @@ Choose one provider and complete its configuration. Modelflare uses the channel 
 | Secret Name | Description | Required |
 |-------------|-------------|:--------:|
 | `LLM_CHANNELS` / `LLM_MODELFLARE_API_KEY` | [Modelflare](https://modelflare.dev/sign-up?utm_source=github&utm_campaign=daily_stock_analysis): set `LLM_CHANNELS=modelflare` and enter your Modelflare API key | **Recommended** |
-| `LLM_MODELFLARE_MODELS` | Set a model available to your account, such as `gpt-5.6-sol`; the endpoint is supplied automatically | Required for Modelflare |
+| `LITELLM_MODEL` | Reuse the primary model setting, such as `openai/gpt-5.6-sol`; the backend supplies the endpoint and single-channel model declaration | Required for Modelflare |
 | `AIHUBMIX_KEY` | [AIHubMix](https://inferera.com/?aff=CfMq) API key, one key for multiple model families and a 10% top-up discount for this project | **Recommended** |
 | `GEMINI_API_KEY` | Google Gemini API key | Optional |
 | `ANTHROPIC_API_KEY` | Anthropic Claude API key | Optional |

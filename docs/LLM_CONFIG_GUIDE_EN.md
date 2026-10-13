@@ -246,8 +246,10 @@ If you prefer modifying files, configuring this in the `.env` file is also very 
 ```env
 LLM_CHANNELS=modelflare
 LLM_MODELFLARE_API_KEY=sk-xxx
-LLM_MODELFLARE_MODELS=gpt-5.6-sol
+LITELLM_MODEL=openai/gpt-5.6-sol
 ```
+
+When `modelflare` is the only declared channel and its model list is blank, the backend reuses `LITELLM_MODEL` and OpenAI-prefixed fallback routes. Use `openai/<model>` for the primary model. An explicit channel list takes precedence; multi-channel setups must declare each channel's models. Inference does not rewrite saved configuration or change model selection.
 
 For the channel named `modelflare`, an omitted or blank Base URL defaults to `https://modelflare.dev/v1`; an explicit `LLM_MODELFLARE_BASE_URL` takes precedence. Protocol defaults to `openai` for this endpoint and the API surface to `chat_completions`. When `LITELLM_MODEL` is unset, the first channel model is selected. Keep the model explicit and choose one your key can access; no model or legacy key is added automatically.
 

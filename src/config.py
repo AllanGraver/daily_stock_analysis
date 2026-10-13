@@ -512,6 +512,28 @@ def resolve_llm_channel_base_url(channel_name: str, base_url: Optional[str]) -> 
     return ""
 
 
+def resolve_llm_channel_models(
+    channel_name: str,
+    models: List[str],
+    *,
+    channel_names: str,
+    primary_model: str = "",
+    fallback_models: str = "",
+) -> List[str]:
+    """Reuse explicit OpenAI routes for a single Modelflare channel without a model list."""
+    if models:
+        return models
+    names = [name.strip().lower() for name in channel_names.split(',') if name.strip()]
+    primary = primary_model.strip()
+    if (names != ["modelflare"] or channel_name.strip().lower() != "modelflare"
+            or not primary.startswith("openai/") or not primary[7:].strip()):
+        return []
+    routes = [primary] + [model.strip() for model in fallback_models.split(',')]
+    return list(dict.fromkeys(
+        route for route in routes if route.startswith("openai/") and route[7:].strip()
+    ))
+
+
 def resolve_llm_channel_protocol(
     protocol: Optional[str],
     *,
@@ -2511,6 +2533,11 @@ class Config:
             # Models
             models_raw = os.getenv(f'LLM_{ch_upper}_MODELS', '')
             raw_models = [m.strip() for m in models_raw.split(',') if m.strip()]
+            raw_models = resolve_llm_channel_models(
+                ch_name, raw_models, channel_names=channels_str,
+                primary_model=os.getenv('LITELLM_MODEL', ''),
+                fallback_models=os.getenv('LITELLM_FALLBACK_MODELS', ''),
+            )
             if not raw_models and ch_lower == "anspire":
                 anspire_model = (
                     os.getenv('ANSPIRE_LLM_MODEL') or ANSPIRE_LLM_MODEL_DEFAULT

@@ -24,6 +24,7 @@ from src.config import (
     normalize_llm_channel_model,
     parse_env_bool,
     resolve_llm_channel_base_url,
+    resolve_llm_channel_models,
     resolve_llm_channel_protocol,
 )
 from src.llm.backend_registry import (
@@ -862,6 +863,11 @@ class GenerationBackendStatusService:
                 api_keys = cls._split_csv(effective_map.get("ANSPIRE_API_KEYS") or "")
 
             raw_models = cls._split_csv(effective_map.get(f"{prefix}_MODELS") or "")
+            raw_models = resolve_llm_channel_models(
+                name, raw_models, channel_names=effective_map.get("LLM_CHANNELS") or "",
+                primary_model=effective_map.get("LITELLM_MODEL") or "",
+                fallback_models=effective_map.get("LITELLM_FALLBACK_MODELS") or "",
+            )
             if lower == "anspire" and not raw_models:
                 raw_models = [(effective_map.get("ANSPIRE_LLM_MODEL") or ANSPIRE_LLM_MODEL_DEFAULT).strip()]
 

@@ -407,6 +407,17 @@ def test_modelflare_minimal_channel_is_available_for_status_and_smoke() -> None:
     assert "LLM_MODELFLARE_BASE_URL" not in effective_map
 
 
+def test_modelflare_global_model_routes_are_used_without_channel_model_list() -> None:
+    service = GenerationBackendStatusService(effective_map={
+        "LLM_CHANNELS": "modelflare", "LLM_MODELFLARE_API_KEY": "sk-test",
+        "LITELLM_MODEL": "openai/account-model", "LITELLM_FALLBACK_MODELS": "openai/fallback-model",
+    }, analyzer_factory=lambda config: _CapturingAnalyzer(config))
+    assert service.get_status()["primary"]["available"] is True
+    assert service.smoke_test(mode="json")["success"] is True
+    config = _CapturingAnalyzer.configs[-1]
+    assert [entry["model_name"] for entry in config.llm_model_list] == ["openai/account-model", "openai/fallback-model"]
+
+
 def test_litellm_channel_route_preserves_responses_surface_for_smoke_config() -> None:
     _CapturingAnalyzer.configs = []
     service = GenerationBackendStatusService(
