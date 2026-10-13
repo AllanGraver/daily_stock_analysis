@@ -1,13 +1,9 @@
 name: 每日股票分析
 
 on:
-  # ── 双保险触发（2026-09-09 起）────────────────────────────────────────────
-  # 外部可靠定时器(cron-job.org 等 SaaS，POST /dispatches 触发 repository_dispatch)
-  # 与 本机 WorkBuddy 自动化(ci_trigger.py → repository_dispatch / push ci-trigger)
-  # 同时触发同一样时段；任一方成功即产出报告，规避
-  # 「本机 WorkBuddy 会话/桌面端未活跃导致自动化被跳过」的单点失效。
-  # 不使用 GitHub 自带 schedule（尽力而为、会延迟/被停用），外部定时器统一走 cron-job.org。
-  # 去重：run 起步查 ci-reports 是否已有本时段新鲜报告，有则跳过主分析（见「去重检查」步）。
+  # 定时触发（2026-09-08 起改为外部驱动）：由本机自动化在北京时间 08:30 / 11:45 / 15:30 发起，
+  # GitHub 仅作执行器——GitHub 自带 cron 只是尽力而为（实测曾延迟 5h21m），无法保证准点。
+  #
   # 通道一（首选，需 PAT）：POST /repos/<owner>/<repo>/dispatches
   #                         {"event_type":"daily-analysis","client_payload":{"slot":"pre|noon|close","mode":"full"}}
   # 通道二（零凭据兜底）：  git push origin HEAD:ci-trigger
@@ -53,7 +49,7 @@ concurrency:
 
 jobs:
   analyze:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     # 兼容误将 STOCK_LIST 配到同名 Environment variables 的场景；
     # 推荐位置仍是 Settings -> Secrets and variables -> Actions -> Repository variables。
     environment: STOCK_LIST
@@ -72,33 +68,7 @@ jobs:
       - name: 随机延迟（避免固定时间访问）
         # 由「checkout 之前、0-60s」改为「checkout 之后、0-15s」：
         # 外部触发要求准点，原写法在检出前空转、白白占用 runner 时长
-        run: sleep 5
-      
-      - name: 去重检查（双触发保护）
-        # 外部定时器(cron-job.org 等 SaaS，POST /dispatches 触发 repository_dispatch)
-        # 与本机 WorkBuddy 自动化同时触发同一样时段时，避免两边都跑一遍主分析(耗 LLM 配额)。
-        # 逻辑：若 ci-reports 已有「今天且 90 分钟内」的新鲜报告，说明另一路触发已产出，本 run 跳过主分析。
-        # 网络/解析失败 → 不跳过（fail-open：宁多跑、不错过报告）。
-        run: |
-          set -uo pipefail
-          NOW=$(TZ='Asia/Shanghai' date +%s)
-          TODAY=$(TZ='Asia/Shanghai' date +%Y-%m-%d)
-          META_URL="https://raw.githubusercontent.com/${{ github.repository }}/ci-reports/reports/latest.meta.json"
-          if ! curl -fsSL --max-time 25 "$META_URL" -o /tmp/lm.json 2>/dev/null; then
-            echo "ℹ️ 无法获取 ci-reports meta（网络/首次），完整运行"; exit 0
-          fi
-          GEN=$(python3 -c "import json,sys;d=json.load(open('/tmp/lm.json'));print(d.get('generated_at',''))" 2>/dev/null || true)
-          if [ -z "$GEN" ]; then echo "ℹ️ meta 无 generated_at，完整运行"; exit 0; fi
-          GEN_DAY=${GEN:0:10}
-          GEN_TS=$(TZ='Asia/Shanghai' date -d "${GEN}" +%s 2>/dev/null || echo 0)
-          DIFF=$(( (NOW - GEN_TS) / 60 ))
-          echo "🕒 现在(北京)=$TODAY / meta.generated_at=$GEN / ${DIFF}分钟前"
-          if [ "$GEN_DAY" = "$TODAY" ] && [ "$DIFF" -ge 0 ] && [ "$DIFF" -le 90 ]; then
-            echo "⏭️ 本时段已有 ${DIFF} 分钟前新鲜报告，跳过主分析与取数"
-            touch SKIP_ANALYSIS
-          else
-            echo "✅ 无新鲜报告，完整运行"
-          fi
+        run: sleep $((RANDOM % 15))
       
       - name: 设置 Python 环境
         uses: actions/setup-python@v6
@@ -108,26 +78,13 @@ jobs:
       
       - name: 安装依赖
         run: |
+          pip install --upgrade pip
           pip install -r requirements.txt
           python -c "import futu; print('✅ futu SDK import OK')"
       
       - name: 创建必要目录
         run: |
           mkdir -p data logs reports .cache
-
-      - name: 恢复新闻缓存（跨 run 持久化）
-        # DirectNewsSearchProvider 将上次成功抓取的新闻写入 data/news_cache.json；
-        # 从 ci-reports 分支拉回上一 run 的缓存，作为本次抓取的兜底/续接，实现跨 run 持久化。
-        # 首次运行或缓存缺失时静默跳过，不影响主流程。
-        run: |
-          mkdir -p data
-          CACHE_URL="https://raw.githubusercontent.com/${{ github.repository }}/ci-reports/data/news_cache.json"
-          if curl -fsSL --max-time 25 "$CACHE_URL" -o data/news_cache.json 2>/dev/null; then
-            echo "✅ 已从 ci-reports 恢复新闻缓存（$(wc -c < data/news_cache.json) bytes）"
-          else
-            echo "ℹ️ 无历史新闻缓存（首次运行/缓存缺失），将全新抓取"
-            rm -f data/news_cache.json
-          fi
 
       - name: 设置日期与触发时段环境变量
         env:
@@ -145,15 +102,7 @@ jobs:
           fi
           [ -z "$SLOT" ] && SLOT="adhoc"
           echo "RUN_SLOT=$SLOT" >> $GITHUB_ENV
-          # 新闻搜索总开关：盘中(noon=11:45)跳过以省 Tavily 等按次计费额度；
-          # 盘前(pre)/收盘(close)/adhoc(手动)均启用。导出到 $GITHUB_ENV 全步骤可见。
-          if [ "$SLOT" = "noon" ]; then
-            NEWS_ENABLED="false"
-          else
-            NEWS_ENABLED="true"
-          fi
-          echo "NEWS_SEARCH_ENABLED=$NEWS_ENABLED" >> $GITHUB_ENV
-          echo "触发时段: $SLOT（事件: ${{ github.event_name }}）/ 新闻搜索(News): $NEWS_ENABLED"
+          echo "触发时段: $SLOT（事件: ${{ github.event_name }}）"
 
       - name: 恢复数据缓存
         uses: actions/cache@v5
@@ -237,7 +186,7 @@ jobs:
           GEMINI_API_KEYS: ${{ secrets.GEMINI_API_KEYS }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL || secrets.GEMINI_MODEL || 'gemini-3-flash-preview' }}
           GEMINI_MODEL_FALLBACK: ${{ vars.GEMINI_MODEL_FALLBACK || secrets.GEMINI_MODEL_FALLBACK || 'gemini-2.5-flash' }}
-          GEMINI_REQUEST_DELAY: ${{ vars.GEMINI_REQUEST_DELAY || '0.5' }}
+          GEMINI_REQUEST_DELAY: '3.0'
           
           # AIHubMix（优先于 OPENAI_API_KEY，自动适配 base_url，推荐国内用户）
           AIHUBMIX_KEY: ${{ secrets.AIHUBMIX_KEY }}
@@ -445,9 +394,6 @@ jobs:
           SEARXNG_PUBLIC_INSTANCES_ENABLED: ${{ vars.SEARXNG_PUBLIC_INSTANCES_ENABLED || secrets.SEARXNG_PUBLIC_INSTANCES_ENABLED }}
           # [zhulinsen新增] SearXNG 超时配置
           SEARXNG_TIMEOUT_SECONDS: ${{ vars.SEARXNG_TIMEOUT_SECONDS || secrets.SEARXNG_TIMEOUT_SECONDS }}
-          # [时段开关] 盘中(noon=11:45)置 false 以省 Tavily 等按次计费额度；
-          # 盘前/收盘/手动(adhooc)置 true。由「设置日期与触发时段环境变量」步按 RUN_SLOT 写入 $GITHUB_ENV。
-          NEWS_SEARCH_ENABLED: ${{ env.NEWS_SEARCH_ENABLED }}
           
           # ==========================================
           # 通知渠道（可同时配置多个，全部推送）
@@ -557,7 +503,7 @@ jobs:
           # 系统配置
           # ==========================================
           LOG_LEVEL: INFO
-          MAX_WORKERS: ${{ vars.MAX_WORKERS || secrets.MAX_WORKERS || '3' }}
+          MAX_WORKERS: ${{ vars.MAX_WORKERS || secrets.MAX_WORKERS || '1' }}
           # 筹码分布：默认 false（云端接口不稳定）；需启用时在 Settings → Variables 添加 ENABLE_CHIP_DISTRIBUTION=true
           ENABLE_CHIP_DISTRIBUTION: ${{ vars.ENABLE_CHIP_DISTRIBUTION || secrets.ENABLE_CHIP_DISTRIBUTION || 'false' }}
           # 实时行情数据源优先级（腾讯有量比且稳定，推荐首选）
@@ -637,7 +583,6 @@ jobs:
           echo "【搜索引擎】"
           echo "  Bocha API Keys: $([ -n "$BOCHA_API_KEYS" ] && echo '✅ 已配置' || echo '⚪ 未配置')"
           echo "  Tavily API Keys: $([ -n "$TAVILY_API_KEYS" ] && echo '✅ 已配置' || echo '⚪ 未配置')"
-          echo "  新闻搜索总开关(NEWS_SEARCH_ENABLED): ${NEWS_SEARCH_ENABLED:-true}（noon 时段禁用以省按次额度）"
           echo "  SerpAPI Keys: $([ -n "$SERPAPI_API_KEYS" ] && echo '✅ 已配置' || echo '⚪ 未配置')"
           echo "  MiniMax API Keys: $([ -n "$MINIMAX_API_KEYS" ] && echo '✅ 已配置' || echo '⚪ 未配置')"
           echo "  Brave API Keys: $([ -n "$BRAVE_API_KEYS" ] && echo '✅ 已配置' || echo '⚪ 未配置')"
@@ -647,7 +592,7 @@ jobs:
               echo "  SearXNG Public Instances: ❌ 已禁用"
               ;;
             "")
-              echo "  SearXNG Public Instances: ❌ 已禁用（未配置，默认关闭）"
+              echo "  SearXNG Public Instances: ✅ 默认开启"
               ;;
             *)
               echo "  SearXNG Public Instances: ✅ 已启用"
@@ -680,12 +625,6 @@ jobs:
           if [ -f "reports/.analysis_done" ] && [ "$(cat reports/.analysis_done)" = "$TODAY" ]; then
             echo "✅ 今日分析产物已存在，跳过重复执行"
             ls -lh reports/report_*.md 2>/dev/null || true
-            exit 0
-          fi
-
-          # 双触发去重：本机自动化已产出本时段新鲜报告则跳过（避免重复烧 LLM 配额）
-          if [ -f SKIP_ANALYSIS ]; then
-            echo "⏭️ 去重：本时段已有另一路触发产出的新鲜报告，跳过主分析"
             exit 0
           fi
 
@@ -748,11 +687,6 @@ jobs:
           MAX_CONCURRENT_REQUESTS: ${{ vars.MAX_CONCURRENT_REQUESTS || '10' }}
         run: |
           set -euo pipefail
-          # 双触发去重：本机自动化已产出本时段新鲜报告则跳过取数
-          if [ -f SKIP_ANALYSIS ]; then
-            echo "⏭️ 去重：本时段已有另一路触发产出的新鲜报告，跳过取数"
-            exit 0
-          fi
           for attempt in 1 2 3; do
             echo "ci_emit 尝试 $attempt/3..."
             python ci_emit.py && break
@@ -804,22 +738,6 @@ jobs:
               "${{ github.run_number }}" \
               "ci_emit" > reports/latest.meta.json
           fi
-
-          # H-23(2026-09-30)：大盘复盘单独发布——本地仪表盘「AI 复盘报告」七章节消费此文件。
-          # 此前只发布 report_*.md（个股决策仪表盘报告），market_review_*.md 虽已生成却不发布，
-          # 仪表盘取到的正文里根本没有「大盘复盘」章节，七章节只能退化为规则引擎短句。
-          MR=$(ls -t reports/market_review_*.md 2>/dev/null | head -1) || true
-          if [ -n "$MR" ]; then
-            cp "$MR" reports/market_review_latest.md
-            MR_DATE=$(basename "$MR" .md | sed 's/market_review_//')
-            printf '{"date":"%s","source":"%s","run_number":"%s","generated_at":"%s"}\n' \
-              "$MR_DATE" "$MR" "${{ github.run_number }}" \
-              "$(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S')" > reports/market_review_latest.meta.json
-            echo "✅ 大盘复盘已发布: $MR"
-          else
-            echo "ℹ️ 本次无 market_review_*.md，跳过"
-          fi
-
           # 使用孤儿分支仅含产物，避免 force-push 整个仓库（含 .github/workflows）触发
           # GitHub 对 workflow 文件的写权限要求（GITHUB_TOKEN 默认仅有 contents:write）。
           git config user.name "github-actions[bot]"
@@ -828,15 +746,10 @@ jobs:
           git rm -rf --cached . >/dev/null 2>&1 || true
           if [ -f reports/latest.md ]; then git add -f reports/latest.md; fi
           git add -f reports/latest.meta.json
-          # H-23：大盘复盘产物（缺失不阻断发布）
-          if [ -f reports/market_review_latest.md ]; then git add -f reports/market_review_latest.md; fi
-          if [ -f reports/market_review_latest.meta.json ]; then git add -f reports/market_review_latest.meta.json; fi
           # 方案A 产物（ci_emit 产出；缺失则跳过，不阻断发布）
           for f in reco.json hotspot_leaders.json holding_fundflow.json; do
             if [ -f "$f" ]; then git add -f "$f"; fi
           done
-          # 跨 run 持久化：新闻缓存（DirectNewsSearchProvider 兜底用；缺失不阻断发布）
-          if [ -f data/news_cache.json ]; then git add -f data/news_cache.json; fi
           if git diff --cached --quiet; then
             echo "📭 无内容变化，跳过提交"
           else
@@ -865,7 +778,7 @@ jobs:
           fi
 
   notify-on-failure:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: analyze
     if: failure()
     steps:
