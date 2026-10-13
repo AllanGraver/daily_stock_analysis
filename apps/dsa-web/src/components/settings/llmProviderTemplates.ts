@@ -7,6 +7,9 @@ export type LLMProviderCapability =
   | 'vision'
   | 'local-runtime';
 
+export const MODELFLARE_APP_REGISTRATION_URL =
+  'https://modelflare.dev/sign-up?utm_source=daily_stock_analysis&utm_campaign=app';
+
 export interface LLMProviderTemplate {
   channelId: string;
   label: string;
@@ -59,6 +62,7 @@ export const LLM_PROVIDER_TEMPLATES: LLMProviderTemplate[] = [
     configHint:
       'API Key 的路由分组需支持所选模型；模型 ID 请以控制台或获取模型的结果为准。modelflare 渠道的 Base URL 留空时使用默认 /v1 地址，可按需覆盖，不额外拼接 /chat/completions。',
     officialSources: [
+      { label: 'Modelflare 专属注册', url: MODELFLARE_APP_REGISTRATION_URL },
       { label: 'Modelflare Docs', url: 'https://docs.modelflare.dev/' },
       { label: 'Modelflare Models & Pricing', url: 'https://modelflare.dev/pricing' },
     ],

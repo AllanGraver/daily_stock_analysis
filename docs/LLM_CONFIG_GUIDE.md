@@ -260,6 +260,8 @@ LLM_MODELFLARE_MODELS=gpt-5.6-sol
 
 `gpt-5.6-sol` 是官方快速开始中的模型示例。请按账号权限选择实际可用模型，并通过 Web「获取模型」和「测试连接」确认；Base URL 不要附加 `/chat/completions`。Modelflare 是新建渠道的首选模板，已保存的渠道和主模型不会因模板顺序调整而改变。Anspire Search 仍通过 `ANSPIRE_API_KEYS` 独立配置。
 
+客户端快速添加按钮及渠道说明中的「Modelflare 专属注册」都使用 app UTM，README 使用 github UTM。新建渠道尚未填写 Key，或主模型/备用模型不属于当前启用渠道时，状态预览会提示「配置需要调整」并列出具体字段；补填 Key、选择可用模型或清空无效的备用模型后重试，预览不会自动改写已保存配置。
+
 ### 兼容示例：Anspire Responses API（GPT-5.6 名称为观测样本）
 
 ```env

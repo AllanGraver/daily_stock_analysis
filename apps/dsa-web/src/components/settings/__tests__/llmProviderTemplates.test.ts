@@ -38,6 +38,7 @@ describe('llmProviderTemplates', () => {
       placeholderModels: 'gpt-5.6-sol',
       capabilities: ['openai-compatible', 'aggregator', 'model-discovery'],
       officialSources: [
+        { label: 'Modelflare 专属注册', url: 'https://modelflare.dev/sign-up?utm_source=daily_stock_analysis&utm_campaign=app' },
         { label: 'Modelflare Docs', url: 'https://docs.modelflare.dev/' },
         { label: 'Modelflare Models & Pricing', url: 'https://modelflare.dev/pricing' },
       ],

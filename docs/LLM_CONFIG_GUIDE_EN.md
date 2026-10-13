@@ -253,6 +253,8 @@ For the channel named `modelflare`, an omitted or blank Base URL defaults to `ht
 
 `gpt-5.6-sol` is the official quickstart example. Select models available to your account and confirm them with the Web editor's "Discover models" and "Test connection" actions; do not append `/chat/completions` to the Base URL. Modelflare is the initially selected template for new channels. Reordering templates does not change saved channels or primary models. Anspire Search continues to use `ANSPIRE_API_KEYS` independently.
 
+Both the client's quick-add registration button and the exclusive registration link in channel details use the app UTM; README links use the github UTM. If a new channel has no key yet, or the primary/fallback model is not declared by an enabled channel, status preview shows the affected configuration fields. Supply the key, select available models or clear invalid fallback selections, then retry. Preview does not rewrite saved settings.
+
 ### Compatibility example: Anspire Responses API (observed GPT-5.6 model names)
 
 ```env

@@ -9,6 +9,7 @@ import type { ChannelProtocol } from './llmProviderTemplates';
 import {
   LLM_PROVIDER_CAPABILITY_LABELS,
   LLM_PROVIDER_TEMPLATES,
+  MODELFLARE_APP_REGISTRATION_URL,
   MODEL_PLACEHOLDERS_BY_PROTOCOL,
   getProviderTemplate,
   isKnownProviderTemplate,
@@ -2392,7 +2393,7 @@ export const LLMChannelEditor: React.FC<LLMChannelEditorProps> = ({
                 />
                 {addPreset === 'modelflare' ? (
                   <a
-                    href="https://modelflare.dev/sign-up?utm_source=daily_stock_analysis&utm_campaign=app"
+                    href={MODELFLARE_APP_REGISTRATION_URL}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="settings-button-secondary inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border px-3 text-sm font-medium transition-all duration-200 hover:translate-y-[-1px] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-cyan/15"
