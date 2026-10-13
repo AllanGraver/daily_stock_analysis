@@ -38,11 +38,33 @@ New clients may additionally read:
 Unknown event types should be ignored or displayed with a generic fallback.
 `done` and `error` keep their existing completion semantics.
 
+## Web Intent Layer Events
+
+When `AGENT_WEB_INTENT_ENABLED=true` (the default), the SSE endpoint runs the
+web intent resolver (`src/agent/web_intent_resolver.py`) before preparing the
+agent turn:
+
+- Every resolved task emits an `intent_resolved` event right after `accepted`.
+- Ambiguous or low-confidence executing intents short-circuit the turn with
+  `accepted` → `intent_resolved` → `action_required` → `done`; the user
+  message and the clarification answer are still persisted, but no agent
+  execution happens. Branch failures end with a single `error`
+  (`confirmation_failed`) and close the stale pending action.
+- Resolution failure or timeout degrades silently: no intent events are
+  emitted and the normal agent flow continues; the stale pending action is
+  still closed (a degraded turn is the confirmation contract's "next turn").
+- Intent-resolved stock codes are validated against the chat registry and
+  become the authoritative turn objects (single stock switches the discussion
+  target; multiple stocks form a compare scope), so a bare confirmation reply
+  such as "港股" resolves to its confirmed targets.
+
 ## Event Types
 
 | Type | Producer | Meaning | Important Fields |
 | --- | --- | --- | --- |
-| `accepted` | SSE endpoint | Context preparation and the user-turn/state transaction succeeded; execution has not started yet. | `backend`, `request_id`, `session_id`, `active_stock_context`, `session_state_version`, `session_generation`, `session_state` |
+| `accepted` | SSE endpoint | Context preparation and the user-turn/state transaction succeeded; execution has not started yet. Always the first event, including the intent-confirmation branch. | `backend`, `request_id`, `session_id`, `active_stock_context`, `session_state_version`, `session_generation`, `session_state` |
+| `intent_resolved` | web intent resolver (SSE endpoint) | The web intent layer classified the message before any agent work started. Emitted after `accepted`, one event per resolved task, only when `AGENT_WEB_INTENT_ENABLED=true`. | `intent`, `confidence`, `source`, `stock_codes`, `sectors`, `candidates`, `inherited_stock_code`, `needs_confirmation` |
+| `action_required` | web intent resolver (SSE endpoint) | The intent layer will not execute yet: the user must confirm an ambiguous stock pick or a low-confidence intent. A `done` event carrying the clarification question as `content` follows immediately. | `action`, `intent`, `reason`, `candidates`, `unresolved_names`, `message` |
 | `stage_start` | single-agent loop, multi-agent orchestrator | An agent or pipeline stage has started. | `stage`, `message` |
 | `stage_done` | single-agent loop, multi-agent orchestrator | An agent or pipeline stage has completed. | `stage`, `status`, `duration` |
 | `thinking` | single-agent loop | The agent is deciding the next action. | `step`, `message` |
@@ -145,7 +167,7 @@ are mock identifiers only.
 Recommended checks for changes to this contract:
 
 ```bash
-python -m pytest tests/test_agent_stream_events.py tests/test_agent_sse_cleanup.py tests/test_agent_chat_api.py tests/test_agent_active_stock_integration.py
+python -m pytest tests/test_agent_stream_events.py tests/test_agent_sse_cleanup.py tests/test_agent_chat_api.py tests/test_agent_active_stock_integration.py tests/test_agent_chat_intent_stream.py
 ```
 
 ```bash

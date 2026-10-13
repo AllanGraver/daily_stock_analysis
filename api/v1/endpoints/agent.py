@@ -7,6 +7,7 @@ import asyncio
 import json
 import logging
 import threading
+import time
 import uuid
 from typing import Any, Dict, List, Optional
 
@@ -48,6 +49,14 @@ router = APIRouter()
 _ACTIVE_CODEX_STREAMS: Dict[str, threading.Event] = {}
 _ACTIVE_CODEX_STREAMS_LOCK = threading.Lock()
 
+# Web 意图解析总预算：覆盖 AkShare 单飞/拉取上限 + 规则解析 + LLM 兜底
+# 之后的余量。超时只截断事件循环侧等待；工作线程内不可取消的部分（如
+# 已在途的 LLM 网络调用）仍会自然结束，本轮按降级（无意图）继续。
+WEB_INTENT_RESOLUTION_TIMEOUT_SECONDS = 30.0
+# 意图解析期间的 SSE 心跳间隔：注释行不产生 data 事件，前端/proxy 可
+# 据此保持连接并感知流仍活跃。
+WEB_INTENT_HEARTBEAT_SECONDS = 5.0
+
 class ChatRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -72,6 +81,11 @@ def _build_agent_chat_context(request: ChatRequest, config, skills: Optional[Lis
     context = dict(request.context or {})
     context.pop("skills", None)
     context.pop("strategies", None)
+    # 意图层内部键是服务端权威输入（会话服务见 web_intent_resolved_stocks 即视为
+    # 本轮已确认标的）：绝不可源自客户端 context——否则伪造该键即可绕过标的
+    # 确认门与讨论对象决策。服务端注入（intent_context）发生在本清洗之后。
+    context.pop("web_intent_resolved_stocks", None)
+    context.pop("web_intent", None)
     if skills is not None:
         context["skills"] = skills
     report_language = context.get("report_language")
@@ -115,12 +129,13 @@ def _public_chat_state(*, active_stock_context, session_state_version, session_g
     }
 
 
-def _prepare_chat_request(request, config, session_id, session_service):
+def _prepare_chat_request(request, config, session_id, session_service, intent_context=None):
     """Prepare once against the session snapshot, then commit exactly one turn."""
     resolved = session_service.prepare_session_turn(
         config, session_id, request.message, request.effective_skills,
         context=_build_agent_chat_context(request, config, None),
         expected_generation=request.session_generation,
+        intent_context=intent_context,
     )
     if resolved.clarification is not None:
         accepted = session_service.commit_user_turn(resolved)
@@ -132,6 +147,68 @@ def _prepare_chat_request(request, config, session_id, session_service):
         resolved_turn=resolved, session_service=session_service,
     )
     return executor, turn, turn.accepted_snapshot, None
+
+
+def _merge_web_intent_context(groups: Any) -> Dict[str, Any]:
+    """非确认分支：意图层解析结果注入请求上下文。
+
+    ``web_intent_resolved_stocks`` 由会话服务校验后作为本轮权威标的
+    （确认消费轮的裸回复自身不含代码，作用域只能来自这里）；多标的
+    不落 stock_code（比较语义不锁定单股）。``web_intent`` 仅作下游
+    编排的意向标签透传。
+    """
+    tasks = [task for group in groups for task in group]
+    merge: Dict[str, Any] = {}
+    if not tasks:
+        return merge
+    merge["web_intent"] = tasks[0].intent.value
+    stocks, seen = [], set()
+    for task in tasks:
+        for stock in task.stocks:
+            if stock.code and stock.code not in seen:
+                seen.add(stock.code)
+                stocks.append(stock)
+    if stocks:
+        merge["web_intent_resolved_stocks"] = [
+            {"code": stock.code, "name": stock.name or ""} for stock in stocks
+        ]
+    return merge
+
+
+def _prepare_intent_confirmation(request, config, session_id, session_service, clarification):
+    """确认短路轮的服务端提交：用户消息落库、讨论对象保持基线、澄清答复落库。
+
+    复用会话澄清事务边界：歧义请求不得切换权威讨论对象（active 基线
+    重算自同一快照），本轮 user + assistant 消息同 accepted 轮提交。
+    """
+    from dataclasses import replace as _dataclass_replace
+
+    resolved = session_service.prepare_session_turn(
+        config, session_id, request.message, request.effective_skills,
+        context=_build_agent_chat_context(request, config, None),
+        expected_generation=request.session_generation,
+    )
+    baseline = session_service.get_session_detail(session_id, limit=-1).active_stock_context
+    accepted = session_service.commit_user_turn(_dataclass_replace(
+        resolved, active_stock_context=baseline, confirm_stock=False,
+        clarification=clarification, compatibility_disposition="invalidate",
+    ))
+    session_service.db.save_conversation_message(
+        session_id, "assistant", clarification, accepted_turn=accepted,
+    )
+    return accepted
+
+
+def _clear_web_intent_pending(intent_session: Any) -> None:
+    """失败/降级/拒绝路径的统一收口：旧待确认窗口不得跨过本轮残留。"""
+    try:
+        from src.agent.web_intent_resolver import clear_pending_actions
+
+        clear_pending_actions(intent_session)
+    except Exception:
+        logger.warning(
+            "Failed to clear stale pending intent actions", exc_info=True,
+        )
 
 
 def _clarification_result(session_service, accepted, content, backend_id):
@@ -544,6 +621,16 @@ async def agent_chat_stream(
     """
     Chat with the AI Agent, streaming progress via SSE.
     Each SSE event is a JSON object with a 'type' field:
+      - accepted: request commit boundary, always the first event (includes
+        the intent-confirmation branch)
+      - intent_resolved: the web intent layer classified the message before
+        any agent work started (one event per resolved task, only when
+        AGENT_WEB_INTENT_ENABLED=true)
+      - action_required: the intent layer needs user confirmation (ambiguous
+        stock candidates or low confidence); a 'done' event carrying the
+        clarification question as 'content' follows immediately. Full
+        confirmation sequence: accepted → intent_resolved →
+        action_required → done
       - thinking: AI is deciding next action
       - stage_start: an agent or orchestrator stage has begun
       - stage_done: an agent or orchestrator stage finished
@@ -625,14 +712,143 @@ async def agent_chat_stream(
 
     async def event_generator():
         fut = None
+        intent_session = None
+        intent_groups = None
         try:
+            # ---- Web 意图层（issue #2239）：位于 prepare 之前，accepted 保持
+            # 首事件。解析在工作线程执行（LLM 兜底/AkShare 扩展可能阻塞），
+            # 事件循环侧只等总预算，期间发 SSE 心跳注释行。----
+            if getattr(config, "agent_web_intent_enabled", False):
+                from src.agent.conversation import conversation_manager
+                from src.agent.web_intent_resolver import WebIntentResolver
+
+                intent_session = conversation_manager.get_or_create(session_id)
+
+                def _resolve_web_intent():
+                    return WebIntentResolver(config).resolve(
+                        request.message,
+                        session_context=intent_session.context,
+                        request_context={
+                            # #1619 锁定股：Web 沿用的当前股票作为意图层继承锚点
+                            "current_stock_code": str((request.context or {}).get("stock_code") or ""),
+                        },
+                    )
+
+                resolve_task = asyncio.create_task(asyncio.to_thread(_resolve_web_intent))
+                deadline = time.monotonic() + WEB_INTENT_RESOLUTION_TIMEOUT_SECONDS
+                try:
+                    while True:
+                        remaining = deadline - time.monotonic()
+                        if remaining <= 0:
+                            raise asyncio.TimeoutError
+                        try:
+                            intent_groups = await asyncio.wait_for(
+                                asyncio.shield(resolve_task),
+                                timeout=min(WEB_INTENT_HEARTBEAT_SECONDS, remaining),
+                            )
+                            break
+                        except asyncio.TimeoutError:
+                            yield ": web-intent-heartbeat\n\n"
+                except asyncio.CancelledError:
+                    raise
+                except Exception as intent_exc:
+                    # 降级：本轮按无意图继续，但降级轮就是确认契约里"紧邻的
+                    # 下一轮"——上一轮遗留的待确认窗口必须在此关闭。
+                    if isinstance(intent_exc, asyncio.TimeoutError):
+                        logger.warning(
+                            "Web intent resolution timed out after %.1fs, continuing without it",
+                            WEB_INTENT_RESOLUTION_TIMEOUT_SECONDS,
+                        )
+                    else:
+                        logger.warning("Web intent resolution failed, continuing without it", exc_info=True)
+                    intent_groups = None
+                    _clear_web_intent_pending(intent_session)
+                finally:
+                    if not resolve_task.done():
+                        resolve_task.cancel()
+
+            # ---- 确认短路分支：accepted → intent_resolved → action_required →
+            # done。任一任务待确认即整链短路：歧义请求绝不能绕过确认门
+            # 直接执行；分支内任何失败也只以 error 终态收场。----
+            confirming_task = (
+                next((task for group in intent_groups for task in group if task.needs_confirmation), None)
+                if intent_groups is not None else None
+            )
+            if confirming_task is not None:
+                from src.agent.web_intent_resolver import (
+                    apply_resolution_to_session, build_action_required_event,
+                    build_clarification_message, build_intent_resolved_event,
+                )
+
+                clarification = build_clarification_message(confirming_task)
+                try:
+                    accepted = await asyncio.to_thread(
+                        _prepare_intent_confirmation, request, config, session_id,
+                        session_service, clarification,
+                    )
+                    # 服务端提交点（user/assistant 落库）已过，才把意图层
+                    # 上下文（pending_actions）写入会话，共享同一提交边界。
+                    apply_resolution_to_session(intent_session, intent_groups)
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:
+                    # 确认分支失败仍保持短路，绝不执行未确认的歧义请求；
+                    # 会话状态冲突沿用其专属错误码与文案。
+                    _clear_web_intent_pending(intent_session)
+                    logger.warning(
+                        "Web intent confirmation branch failed, skipping analysis of unconfirmed request",
+                        exc_info=True,
+                    )
+                    event = {
+                        "type": "error",
+                        "message": str(exc) if isinstance(exc, ChatSessionStateConflict) else "无法完成该请求的确认流程，请稍后重试",
+                        "error_code": exc.code if isinstance(exc, ChatSessionStateConflict) else "confirmation_failed",
+                        "backend": backend_id,
+                        "request_id": request_id,
+                        "session_id": session_id,
+                    }
+                    yield "data: " + json.dumps(event, ensure_ascii=False) + "\n\n"
+                    return
+
+                accepted_event = {
+                    "type": "accepted",
+                    "backend": backend_id,
+                    "request_id": request_id,
+                    "session_id": session_id,
+                    **_accepted_state_payload(accepted),
+                }
+                yield "data: " + json.dumps(accepted_event, ensure_ascii=False) + "\n\n"
+                for group in intent_groups:
+                    for task in group:
+                        yield "data: " + json.dumps(
+                            build_intent_resolved_event(task), ensure_ascii=False,
+                        ) + "\n\n"
+                yield "data: " + json.dumps(
+                    build_action_required_event(confirming_task), ensure_ascii=False,
+                ) + "\n\n"
+                event = {
+                    "type": "done", "success": True, "content": clarification,
+                    "error": None, "total_steps": 0, "session_id": session_id,
+                    "backend": backend_id, "request_id": request_id, "error_code": None,
+                }
+                yield "data: " + json.dumps(event, ensure_ascii=False) + "\n\n"
+                return
+
+            intent_context = (
+                _merge_web_intent_context(intent_groups) if intent_groups is not None else None
+            )
             try:
                 executor, turn, accepted, clarification = await asyncio.to_thread(
-                    _prepare_chat_request, request, config, session_id, session_service,
+                    _prepare_chat_request, request, config, session_id, session_service, intent_context,
                 )
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
+                # 请求被拒（request_not_accepted）：accepted 未发出、本轮未
+                # 提交，但用户消息已被本轮消费意图——上一轮遗留的确认窗口
+                # 一律关闭，否则下一轮无关消息会被误消费为陈旧确认。
+                if intent_session is not None:
+                    _clear_web_intent_pending(intent_session)
                 logger.error("Agent request preparation failed: %s", exc, exc_info=True)
                 event = {
                     "type": "error",
@@ -653,6 +869,27 @@ async def agent_chat_stream(
                 **_accepted_state_payload(accepted),
             }
             yield "data: " + json.dumps(accepted_event, ensure_ascii=False) + "\n\n"
+
+            # ---- 非确认分支：accepted 之后的意图事件 + 会话簿记 ----
+            if intent_groups is not None:
+                from src.agent.web_intent_resolver import (
+                    apply_resolution_to_session, build_intent_resolved_event,
+                )
+                try:
+                    # prepare 提交点已过（用户轮已落库），意图层上下文此刻
+                    # 写入会话；簿记失败不得让旧确认窗口残留过已执行轮。
+                    apply_resolution_to_session(intent_session, intent_groups)
+                except Exception:
+                    logger.warning(
+                        "Failed to persist web intent session context after turn preparation",
+                        exc_info=True,
+                    )
+                    _clear_web_intent_pending(intent_session)
+                for group in intent_groups:
+                    for task in group:
+                        yield "data: " + json.dumps(
+                            build_intent_resolved_event(task), ensure_ascii=False,
+                        ) + "\n\n"
 
             # Backend execution starts only after the accepted event has been
             # yielded, so Web state and server persistence share one commit point.

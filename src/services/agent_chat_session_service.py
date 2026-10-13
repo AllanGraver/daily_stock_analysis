@@ -47,6 +47,38 @@ def _identity(stock: Dict[str, Any]) -> StockIdentity:
     return StockIdentity(stock["stock_code"], stock["canonical_id"], stock["asset_type"], stock.get("stock_name"))
 
 
+def _intent_resolved_identities(
+    context: Dict[str, Any], registry: IndexRegistry, lookup: dict,
+) -> List[tuple[StockIdentity, str]]:
+    """Read web-intent resolved stocks (kept in context; multi-stock rendering still reads them).
+
+    Codes are validated against the registry with the same gate as a decide
+    ``confirm``; entries that fail validation are skipped — the turn falls
+    back to the text-based decision instead of writing unverified identities
+    into a strict scope.
+    """
+    payloads = context.get("web_intent_resolved_stocks")
+    if not isinstance(payloads, list):
+        return []
+    resolved: List[tuple[StockIdentity, str]] = []
+    seen: set = set()
+    for payload in payloads:
+        if not isinstance(payload, dict):
+            continue
+        code = str(payload.get("code") or "").strip()
+        if not code:
+            continue
+        try:
+            identity = _code_identity(code, registry, lookup)
+        except (TypeError, ValueError):
+            continue
+        if identity in seen:
+            continue
+        seen.add(identity)
+        resolved.append((identity, str(payload.get("name") or "").strip()))
+    return resolved
+
+
 def _active_from_snapshot(snapshot: Dict[str, Any], registry: IndexRegistry, lookup: dict) -> Optional[Dict[str, Any]]:
     if not snapshot["session_generation"]:
         return None
@@ -186,11 +218,14 @@ class AgentChatSessionService:
         self, config: Any, session_id: str, message: str,
         requested_skill_ids: Optional[List[str]] = None,
         *, context: Optional[Dict[str, Any]] = None, expected_generation: Optional[str] = None,
+        intent_context: Optional[Dict[str, Any]] = None,
     ) -> ResolvedChatTurn:
         generation = self.db.ensure_chat_session_generation(session_id, expected_generation=expected_generation)
         snapshot = self.db.read_chat_session_snapshot(session_id)
         if snapshot["session_generation"] != generation:
             raise ChatSessionStateConflict()
+        if intent_context:
+            context = {**(context or {}), **intent_context}
         return self._resolve_session_turn(config, snapshot, message, requested_skill_ids, context=context)
 
     def _resolve_session_turn(
@@ -224,11 +259,33 @@ class AgentChatSessionService:
 
             if normalize_report_language((context or {}).get("report_language") or getattr(config, "report_language", "zh")) == "en":
                 clarification = "The discussion target is not confirmed. Please provide the complete stock or index code."
+        # Web 意图层已解析标的（issue #2239）：确认消费轮的裸回复（如
+        # "港股"）自身不含代码，decide_chat_object 无从判定；意图层解析
+        # 结果是本轮权威对象，覆盖 decide 的澄清/维持判定。
+        intent_stocks = _intent_resolved_identities(context or {}, registry, lookup)
+        intent_participants: tuple = ()
+        if intent_stocks:
+            clarification = None
+            if len(intent_stocks) == 1:
+                identity, intent_name = intent_stocks[0]
+                active = _stock_record(identity, lookup, registry)
+                if intent_name:
+                    active["stock_name"] = intent_name
+                confirm = True
+                compare = False
+            else:
+                # 多标的比较轮：与 decide 的 compare 同口径——参与者进白名
+                # 单，讨论对象保持基线不切换。
+                active = baseline
+                confirm = False
+                compare = True
+                intent_participants = tuple(identity for identity, _name in intent_stocks)
         allowed = []
         if active is not None:
             allowed.append(_identity(active))
         if compare and clarification is None:
-            allowed.extend(item for item in decision.participants if item not in allowed)
+            participants = intent_participants or decision.participants
+            allowed.extend(item for item in participants if item not in allowed)
         scope = StockScope(expected_stock_code=active["stock_code"] if active else "",
                            allowed_stock_codes={item.stock_code for item in allowed},
                            mode="compare" if compare else "switch" if confirm else "maintain",

@@ -2174,3 +2174,84 @@ def clear_pending_actions(session: Any) -> None:
     闸门关闭，陈旧 last_resolutions 投影惰性化，下轮写侧覆写自愈）。"""
     if (context := _writable_context(session)) is not None:
         _write_context(session, context, PENDING_ACTIONS_KEY, [])
+
+
+# =========================================================================
+# SSE 事件构建（issue #2239 PR-4：SSE/API 集成层的展示契约）
+# =========================================================================
+
+# 市场 → 中文标签（澄清提示用；Stock.market 为 str，键按小写匹配）
+_MARKET_LABELS: Dict[str, str] = {"a": "A股", "hk": "港股", "us": "美股"}
+
+
+def build_intent_resolved_event(resolution: WebIntentResolution) -> Dict[str, Any]:
+    """单个任务的 intent_resolved SSE 事件（accepted 之后、Agent 工作前）。
+
+    二维任务组按序逐任务发事件（单意图消息即一条）；空列表字段序列化为
+    None 减少体积，confidence 保留两位小数去噪。
+    """
+    return {
+        "type": "intent_resolved",
+        "intent": resolution.intent.value,
+        "confidence": round(resolution.confidence, 2),
+        "source": resolution.source,
+        "stock_codes": [s.code for s in resolution.stocks] or None,
+        "sectors": list(resolution.sectors) or None,
+        "candidates": [_stock_payload(c) for c in resolution.candidates] or None,
+        "inherited_stock_code": resolution.inherited_stock_code or None,
+        "needs_confirmation": resolution.needs_confirmation or None,
+    }
+
+
+def build_clarification_message(resolution: WebIntentResolution) -> str:
+    """面向用户的澄清提示文本（确认短路的 done.content / action_required.message）。
+
+    按优先级：1) 歧义候选 → 列出候选（最多 5 个）；2) 名称无法识别 →
+    提示检查拼写；3) 低置信度 → 引导补充意图方向；4) 默认兜底。
+    """
+    if resolution.candidates:
+        # 同名候选（如 hk 09988 / us BABA 都叫"阿里巴巴"）无法靠回复名称
+        # 区分（消费侧同名守卫不确认），话术不得引导"回复名称"——否则
+        # 用户照做会被原样重问陷入确认死循环；改引代码或市场词（市场
+        # 收窄是消费侧支持的回答形）。
+        names = [c.name or "" for c in resolution.candidates]
+        same_name = len(names) != len(set(names))
+        if same_name:
+            lines = ["你说的股票可能指以下几只（名称相同），请回复股票代码或所在市场确认（如：港股、美股）："]
+        else:
+            lines = ["你说的股票可能指以下几只，请回复股票代码或名称确认："]
+        for cand in resolution.candidates[:5]:
+            label = _MARKET_LABELS.get(str(cand.market).lower(), str(cand.market or ""))
+            suffix = f"（{label}）" if label else ""
+            lines.append(f"- {cand.code} {cand.name or ''}{suffix}".rstrip())
+        return "\n".join(lines)
+
+    if resolution.unresolved_names:
+        names = "、".join(resolution.unresolved_names)
+        return (
+            f"没有查到「{names}」对应的股票，请确认名称是否正确，"
+            "或直接提供股票代码（如 600519、hk00700、AAPL）。"
+        )
+
+    if resolution.reason == "low_confidence":
+        return "我没有完全理解你的需求，请补充说明：想分析具体股票、查看持仓，还是了解大盘行情？"
+
+    return "请补充你想分析的股票名称或代码（如 600519、hk00700、AAPL）。"
+
+
+def build_action_required_event(resolution: WebIntentResolution) -> Dict[str, Any]:
+    """action_required SSE 事件（待确认任务的执行前确认门）。
+
+    message 与确认短路 done.content 同源（build_clarification_message），
+    前端可直接展示；确认链的运行时载荷（groups/原始请求）在服务端
+    pending_action 内，不随事件下发。
+    """
+    return {
+        "type": "action_required",
+        "action": "confirm_stock",
+        "intent": resolution.intent.value,
+        "reason": resolution.reason or None,
+        "candidates": [_stock_payload(c) for c in resolution.candidates] or None,
+        "unresolved_names": list(resolution.unresolved_names) or None,
+        "message": build_clarification_message(resolution),
+    }

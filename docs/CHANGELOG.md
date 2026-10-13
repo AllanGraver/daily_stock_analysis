@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- [新功能] Web Chat SSE 流接入意图识别层（issue #2239 PR-4）：`AGENT_WEB_INTENT_ENABLED`（默认开启）时在 Agent 编排前调用 `WebIntentResolver.resolve()`，accepted 保持首事件，其后逐任务发出 `intent_resolved`；低置信度或一名多候选股票时按 `accepted → intent_resolved → action_required → done` 短路返回澄清问题（用户消息与澄清答复仍持久化，讨论对象保持基线），确认分支失败只以 `error`（confirmation_failed）终态收场。解析在工作线程执行并有 30s 总预算 + 5s SSE 心跳，超时/异常静默降级为无意图轮。每轮 accepted 之后无论成功/失败/降级/拒绝，上一轮遗留的待确认动作（pending_actions）一律随本轮关闭；意图层解析出的股票代码经注册表校验后成为本轮权威标的（单股切换讨论对象、多股构成比较作用域），确认消费轮的裸回复（如"港股"）由此正确锁定标的，executor 对多标的轮显式渲染"本轮已确认的分析标的"。意图层内部上下文键（web_intent_resolved_stocks / web_intent）在进入上下文契约前统一剥除客户端来源副本——伪造该键无法绕过标的确认门与讨论对象决策（OR-COR-aaf608b2，回归测试覆盖开关开/关两态）。
 - [修复] 当前 Bot 与 Web 交替问股复用服务端已确认对象及严格工具范围，普通追问／比较保留确认状态，切股进入待确认；Bot 提交校验快照版本及用户锚点，保留真正旧代码／旁路写入的保守失效边界。
 - [修复] 严格回测读取兼容正常 CN 写入器生成的数字汇总／明细键，按已验证对象与关联分析来源约束 SQL，保留跨市场隔离及总数／分页一致性。
 - [修复] 问股条件切股跨逗号保持澄清，否定比较不扩大工具范围；个股回测汇总及明细按已验证市场身份查询，保留同身份存储别名，不回退读取其他市场数据。
