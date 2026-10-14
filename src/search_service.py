@@ -568,6 +568,179 @@ class TavilySearchProvider(BaseSearchProvider):
             return '未知来源'
 
 
+class ContextDevSearchProvider(BaseSearchProvider):
+    """
+    Context.dev 搜索引擎
+
+    特点：
+    - 面向 AI 应用的 Web 搜索 / 网页抓取服务（定位与 Tavily 类似）
+    - 支持 freshness 时效过滤（last_24_hours / last_week / last_month / last_year）
+    - 按 credits 计费（Web 搜索约 1 credit / 10 条结果），支持多 Key 轮换
+
+    文档：https://context.dev/
+    """
+
+    API_URL = "https://api.context.dev/v1/web/search"
+    REQUEST_TIMEOUT_SECONDS = 30
+    MIN_RESULTS = 10   # API numResults 下限
+    MAX_RESULTS = 100  # API numResults 上限
+    _URL_DATE_PATTERN = re.compile(r"(?<!\d)(20\d{2})(\d{2})(\d{2})(?!\d)")
+    # 日期后直接拼接文章 ID 的形式，如 /a/202610133893317988.html
+    _URL_DATE_PREFIX_PATTERN = re.compile(r"(?<!\d)(20\d{2})(\d{2})(\d{2})\d{2,}(?!\d)")
+
+    def __init__(self, api_keys: List[str]):
+        super().__init__(api_keys, "ContextDev")
+
+    @classmethod
+    def _freshness(cls, days: int) -> str:
+        """把“最近 N 天”映射为 Context.dev freshness 枚举。"""
+        if days <= 1:
+            return "last_24_hours"
+        if days <= 7:
+            return "last_week"
+        if days <= 31:
+            return "last_month"
+        return "last_year"
+
+    @classmethod
+    def _extract_date_from_url(cls, url: str) -> Optional[str]:
+        """从 URL 中尽力提取发布日期（如 /20261012/、story20261012-xxx）。
+
+        Context.dev 搜索结果不返回发布时间，新闻 URL 常内嵌日期，
+        提取成功才能通过下游的严格时效过滤。
+        """
+        match = cls._URL_DATE_PATTERN.search(url or "") or cls._URL_DATE_PREFIX_PATTERN.search(url or "")
+        if not match:
+            return None
+        try:
+            dt = datetime(
+                int(match.group(1)),
+                int(match.group(2)),
+                int(match.group(3)),
+            )
+        except ValueError:
+            return None
+        if dt.date() < date(2000, 1, 1) or dt.date() > datetime.now().date() + timedelta(days=2):
+            return None
+        return dt.strftime("%Y-%m-%d")
+
+    def _do_search(
+        self,
+        query: str,
+        api_key: str,
+        max_results: int,
+        days: int = 7,
+    ) -> SearchResponse:
+        """执行 Context.dev 搜索"""
+        payload: Dict[str, Any] = {
+            "query": query,
+            "numResults": max(self.MIN_RESULTS, min(int(max_results), self.MAX_RESULTS)),
+            "freshness": self._freshness(days),
+            "descriptionMaxCharacters": 280,
+        }
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Accept": "application/json",
+        }
+
+        try:
+            response = _post_with_retry(
+                self.API_URL,
+                headers=headers,
+                json=payload,
+                timeout=self.REQUEST_TIMEOUT_SECONDS,
+            )
+        except requests.exceptions.Timeout:
+            return SearchResponse(
+                query=query,
+                results=[],
+                provider=self.name,
+                success=False,
+                error_message="请求超时",
+            )
+        except requests.exceptions.RequestException as e:
+            return SearchResponse(
+                query=query,
+                results=[],
+                provider=self.name,
+                success=False,
+                error_message=f"网络请求失败: {e}",
+            )
+
+        if response.status_code != 200:
+            return SearchResponse(
+                query=query,
+                results=[],
+                provider=self.name,
+                success=False,
+                error_message=self._parse_http_error(response),
+            )
+
+        try:
+            data = response.json()
+        except Exception:
+            return SearchResponse(
+                query=query,
+                results=[],
+                provider=self.name,
+                success=False,
+                error_message="响应JSON解析失败",
+            )
+
+        raw = data.get("results", []) if isinstance(data, dict) else []
+        if not isinstance(raw, list):
+            raw = []
+
+        results = []
+        for item in raw:
+            if not isinstance(item, dict):
+                continue
+            url_val = item.get("url") or ""
+            if not url_val:
+                continue
+            results.append(SearchResult(
+                title=item.get("title", ""),
+                snippet=(item.get("description") or "")[:500],
+                url=url_val,
+                source=self._extract_domain(url_val),
+                published_date=self._extract_date_from_url(url_val),
+            ))
+
+        logger.info(
+            f"[ContextDev] 搜索完成，query='{query}'，freshness={payload['freshness']}，返回 {len(results)} 条结果"
+        )
+        return SearchResponse(
+            query=query,
+            results=results,
+            provider=self.name,
+            success=True,
+        )
+
+    @staticmethod
+    def _parse_http_error(response) -> str:
+        """解析 Context.dev HTTP 错误响应"""
+        try:
+            data = response.json()
+            if isinstance(data, dict):
+                message = data.get("message") or data.get("error") or ""
+                if message:
+                    return f"HTTP {response.status_code}: {str(message)[:200]}"
+        except Exception:
+            pass
+        return f"HTTP {response.status_code}: {response.text[:200]}"
+
+    @staticmethod
+    def _extract_domain(url: str) -> str:
+        """从 URL 提取域名作为来源"""
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(url)
+            domain = parsed.netloc.replace('www.', '')
+            return domain or '未知来源'
+        except Exception:
+            return '未知来源'
+
+
 class SerpAPISearchProvider(BaseSearchProvider):
     """
     SerpAPI 搜索引擎
@@ -2405,6 +2578,7 @@ class SearchService:
         self,
         bocha_keys: Optional[List[str]] = None,
         tavily_keys: Optional[List[str]] = None,
+        context_dev_keys: Optional[List[str]] = None,
         anspire_keys: Optional[List[str]] = None,
         brave_keys: Optional[List[str]] = None,
         serpapi_keys: Optional[List[str]] = None,
@@ -2421,6 +2595,7 @@ class SearchService:
         Args:
             bocha_keys: 博查搜索 API Key 列表
             tavily_keys: Tavily API Key 列表
+            context_dev_keys: Context.dev API Key 列表
             anspire_keys: Anspire Search API Key 列表
             brave_keys: Brave Search API Key 列表
             serpapi_keys: SerpAPI Key 列表
@@ -2433,6 +2608,7 @@ class SearchService:
         self._constructor_kwargs: Dict[str, Any] = {
             "bocha_keys": list(bocha_keys or []),
             "tavily_keys": list(tavily_keys or []),
+            "context_dev_keys": list(context_dev_keys or []),
             "anspire_keys": list(anspire_keys or []),
             "brave_keys": list(brave_keys or []),
             "serpapi_keys": list(serpapi_keys or []),
@@ -2472,22 +2648,27 @@ class SearchService:
             self._providers.append(TavilySearchProvider(tavily_keys))
             logger.info(f"已配置 Tavily 搜索，共 {len(tavily_keys)} 个 API Key")
 
-        # 3. Brave Search（隐私优先，全球覆盖）
+        # 3. Context.dev（AI 搜索服务，支持 freshness 时效过滤）
+        if context_dev_keys:
+            self._providers.append(ContextDevSearchProvider(context_dev_keys))
+            logger.info(f"已配置 Context.dev 搜索，共 {len(context_dev_keys)} 个 API Key")
+
+        # 4. Brave Search（隐私优先，全球覆盖）
         if brave_keys:
             self._providers.append(BraveSearchProvider(brave_keys))
             logger.info(f"已配置 Brave 搜索，共 {len(brave_keys)} 个 API Key")
 
-        # 4. SerpAPI 作为备选（每月 100 次）
+        # 5. SerpAPI 作为备选（每月 100 次）
         if serpapi_keys:
             self._providers.append(SerpAPISearchProvider(serpapi_keys))
             logger.info(f"已配置 SerpAPI 搜索，共 {len(serpapi_keys)} 个 API Key")
 
-        # 5. MiniMax（Coding Plan Web Search，结构化结果）
+        # 6. MiniMax（Coding Plan Web Search，结构化结果）
         if minimax_keys:
             self._providers.append(MiniMaxSearchProvider(minimax_keys))
             logger.info(f"已配置 MiniMax 搜索，共 {len(minimax_keys)} 个 API Key")
 
-        # 6. SearXNG（自建实例优先；未配置时可自动发现公共实例）
+        # 7. SearXNG（自建实例优先；未配置时可自动发现公共实例）
         searxng_provider = SearXNGSearchProvider(
             searxng_base_urls,
             use_public_instances=bool(searxng_public_instances_enabled and not searxng_base_urls),
@@ -2500,7 +2681,7 @@ class SearchService:
             else:
                 logger.info("已启用 SearXNG 公共实例自动发现模式")
 
-        # 7. Anspire Search（实时智能搜索优化）
+        # 8. Anspire Search（实时智能搜索优化）
         if anspire_keys:
             self._providers.insert(0, AnspireSearchProvider(anspire_keys))
             logger.info(f"已配置 Anspire Search 搜索，共 {len(anspire_keys)} 个 API Key")
@@ -4918,6 +5099,7 @@ def get_search_service() -> SearchService:
                 _search_service = SearchService(
                     bocha_keys=config.bocha_api_keys,
                     tavily_keys=config.tavily_api_keys,
+                    context_dev_keys=config.context_dev_api_keys,
                     anspire_keys=config.anspire_api_keys,
                     brave_keys=config.brave_api_keys,
                     serpapi_keys=config.serpapi_keys,
