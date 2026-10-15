@@ -195,6 +195,43 @@ class TestSearchServiceContextDevRegistration(unittest.TestCase):
         names = [p.name for p in service._providers]
         self.assertNotIn("ContextDev", names)
 
+    def test_positional_call_signature_unchanged(self):
+        """旧位置传参兼容：既有参数相对顺序必须保持不变（review OR-COM-5e9eee92）。"""
+        service = SearchService(
+            ["bocha_k"],    # bocha_keys
+            ["tavily_k"],   # tavily_keys
+            ["anspire_k"],  # anspire_keys
+            ["brave_k"],    # brave_keys
+            ["serpapi_k"],  # serpapi_keys
+            ["minimax_k"],  # minimax_keys
+            [],             # searxng_base_urls
+            False,          # searxng_public_instances_enabled
+            None,           # searxng_timeout_seconds
+            3,              # news_max_age_days
+            "short",        # news_strategy_profile
+        )
+        by_name = {p.name: p._api_keys for p in service._providers}
+        self.assertEqual(by_name.get("Bocha"), ["bocha_k"])
+        self.assertEqual(by_name.get("Tavily"), ["tavily_k"])
+        self.assertEqual(by_name.get("Anspire"), ["anspire_k"])
+        self.assertEqual(by_name.get("Brave"), ["brave_k"])
+        self.assertEqual(by_name.get("SerpAPI"), ["serpapi_k"])
+        self.assertEqual(by_name.get("MiniMax"), ["minimax_k"])
+        self.assertNotIn("ContextDev", by_name)
+
+    def test_context_dev_keys_never_leak_to_other_providers(self):
+        """context_dev_keys 只能经关键字或末尾位置参数传入，不得错位到其他 provider。"""
+        service = SearchService(
+            ["bocha_k"], ["tavily_k"], ["anspire_k"], ["brave_k"], ["serpapi_k"],
+            ["minimax_k"], [], False, None, 3, "short", ["ctxt_k"],
+        )
+        by_name = {p.name: p._api_keys for p in service._providers}
+        self.assertEqual(by_name.get("ContextDev"), ["ctxt_k"])
+        self.assertEqual(by_name.get("Anspire"), ["anspire_k"])
+        # Anspire Key 不应被传给 Context.dev（避免第三方凭据错误披露）
+        self.assertNotIn("anspire_k", by_name.get("ContextDev", []))
+        self.assertNotIn("ctxt_k", by_name.get("Anspire", []))
+
     def test_search_capability_via_config(self):
         from src.config import Config
 

@@ -2578,7 +2578,6 @@ class SearchService:
         self,
         bocha_keys: Optional[List[str]] = None,
         tavily_keys: Optional[List[str]] = None,
-        context_dev_keys: Optional[List[str]] = None,
         anspire_keys: Optional[List[str]] = None,
         brave_keys: Optional[List[str]] = None,
         serpapi_keys: Optional[List[str]] = None,
@@ -2588,6 +2587,8 @@ class SearchService:
         searxng_timeout_seconds: Optional[int] = None,
         news_max_age_days: int = 3,
         news_strategy_profile: str = "short",
+        # 注意：新增参数必须追加在签名末尾，保持既有位置传参语义不变（review OR-COM-5e9eee92）
+        context_dev_keys: Optional[List[str]] = None,
     ):
         """
         初始化搜索服务
@@ -2595,7 +2596,6 @@ class SearchService:
         Args:
             bocha_keys: 博查搜索 API Key 列表
             tavily_keys: Tavily API Key 列表
-            context_dev_keys: Context.dev API Key 列表
             anspire_keys: Anspire Search API Key 列表
             brave_keys: Brave Search API Key 列表
             serpapi_keys: SerpAPI Key 列表
@@ -2604,6 +2604,7 @@ class SearchService:
             searxng_public_instances_enabled: 未配置自建实例时，是否自动使用公共 SearXNG 实例
             news_max_age_days: 新闻最大时效（天）
             news_strategy_profile: 新闻窗口策略档位（ultra_short/short/medium/long）
+            context_dev_keys: Context.dev API Key 列表（追加在末尾，避免破坏位置传参兼容）
         """
         self._constructor_kwargs: Dict[str, Any] = {
             "bocha_keys": list(bocha_keys or []),
