@@ -85,7 +85,7 @@ def add_guard_middleware(app) -> None:
         security_headers=None,  # do not change response headers
         trusted_proxies=trusted_proxies,
         trusted_proxy_depth=1,
-        rate_limit=_int("GUARD_RATE_LIMIT", 120),
+        rate_limit=_int("GUARD_RATE_LIMIT", 300),
         rate_limit_window=_int("GUARD_RATE_LIMIT_WINDOW", 60),
         whitelist=tuple(_csv("GUARD_WHITELIST")) or None,
         blacklist=tuple(_csv("GUARD_BLACKLIST")),
