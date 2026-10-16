@@ -18,11 +18,11 @@ vi.mock('../../../api/systemConfig', () => ({
 
 const codexStatus: AgentBackendStatusResponse = {
   backend: 'codex_app_server',
-  available: true,
-  experimental: true,
-  version: 'codex-cli test',
-  errorCode: null,
-  message: null,
+  available: false,
+  experimental: false,
+  version: null,
+  errorCode: 'backend_removed',
+  message: 'removed',
 };
 
 const litellmStatus: AgentBackendStatusResponse = {
@@ -47,8 +47,6 @@ function renderPanel(overrides: Partial<React.ComponentProps<typeof AgentBackend
     items: [],
     maskToken: '******',
     selectedBackend: 'auto',
-    agentArch: 'single',
-    onUseSingleAgent: vi.fn(),
     onEnableAgentMode: vi.fn(),
     ...overrides,
   };
@@ -68,7 +66,7 @@ describe('AgentBackendStatusPanel', () => {
     expect(previewStatus).not.toHaveBeenCalled();
     expect(await screen.findByText('默认模型')).toBeInTheDocument();
     expect(screen.getByText('可以尝试')).toBeInTheDocument();
-    expect(screen.getByText(/不会登录、调用模型或读取股票数据/)).toBeInTheDocument();
+    expect(screen.getByText(/不会登录、调用模型、启动外部命令或读取股票数据/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /真实测试/ })).not.toBeInTheDocument();
   });
 
@@ -83,8 +81,8 @@ describe('AgentBackendStatusPanel', () => {
       maskToken: '******',
     }));
     expect(getStatus).not.toHaveBeenCalled();
-    expect(await screen.findByText('Codex Agent')).toBeInTheDocument();
-    expect(screen.getByText('实验功能')).toBeInTheDocument();
+    expect(await screen.findAllByText('Codex App Server（已移除）')).not.toHaveLength(0);
+    expect(screen.queryByText('实验功能')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /真实测试/ })).not.toBeInTheDocument();
   });
 
@@ -116,26 +114,7 @@ describe('AgentBackendStatusPanel', () => {
       first.resolve(codexStatus);
       await first.promise;
     });
-    expect(screen.queryByText('Codex Agent')).not.toBeInTheDocument();
-  });
-
-  it('shows the Codex multi-agent conflict without making a status request', async () => {
-    const onUseSingleAgent = vi.fn();
-    renderPanel({
-      items: [
-        { key: 'AGENT_BACKEND', value: 'codex_app_server' },
-        { key: 'AGENT_ARCH', value: 'multi' },
-      ],
-      selectedBackend: 'codex_app_server',
-      agentArch: 'multi',
-      onUseSingleAgent,
-    });
-
-    expect(screen.getByRole('button', { name: '刷新状态' })).toBeDisabled();
-    expect(getStatus).not.toHaveBeenCalled();
-    expect(previewStatus).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: '切换为单 Agent' }));
-    expect(onUseSingleAgent).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Codex App Server（已移除）')).not.toBeInTheDocument();
   });
 
   it('explains disabled Agent mode and only updates the draft on action', async () => {
