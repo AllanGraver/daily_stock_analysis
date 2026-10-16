@@ -65,6 +65,7 @@ def add_guard_middleware(app) -> None:
         return
     try:
         from guard import PureASGISecurityMiddleware, SecurityConfig
+        from guard_core.handlers.suspatterns_handler import ALL_DETECTION_CATEGORIES
     except ImportError as exc:
         raise RuntimeError(
             "GUARD_ENABLED=true requires the 'fastapi-guard' package. "
@@ -90,6 +91,8 @@ def add_guard_middleware(app) -> None:
         blacklist=tuple(_csv("GUARD_BLACKLIST")),
         detection_scan_body=os.getenv("GUARD_SCAN_BODY", "false").strip().lower() in _TRUE,
         passive_mode=os.getenv("GUARD_PASSIVE_MODE", "false").strip().lower() in _TRUE,
+        # Browsers send the page address as Referer, and guard-core 4.4.0 flags localhost and LAN addresses in it as ssrf.
+        enabled_detection_categories=frozenset(ALL_DETECTION_CATEGORIES) - {"ssrf"},
     )
     app.add_middleware(PureASGISecurityMiddleware, config=config)
     logger.info(

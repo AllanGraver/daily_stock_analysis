@@ -190,6 +190,22 @@ class SecurityGuardTestCase(unittest.TestCase):
         resp = client.get("/api/v1/auth/status", params={"q": "<script>alert(1)</script>"})
         self.assertEqual(resp.status_code, 400)
 
+    def test_localhost_and_lan_referers_are_not_blocked(self):
+        app = self._build_app(GUARD_ENABLED="true")
+
+        for referer in ("http://localhost:5173/", "http://127.0.0.1:8000/chat", "http://192.168.1.20:8000/"):
+            with self.subTest(referer=referer):
+                resp = self._client(app, f"203.0.113.{next(_PEERS) + 100}").get(
+                    "/api/v1/auth/status", headers={"Referer": referer}
+                )
+                self.assertEqual(resp.status_code, 200)
+
+    def test_attack_in_referer_is_still_blocked(self):
+        app = self._build_app(GUARD_ENABLED="true")
+
+        resp = self._client(app).get("/api/v1/auth/status", headers={"Referer": "<script>alert(1)</script>"})
+        self.assertEqual(resp.status_code, 400)
+
     def test_body_is_not_scanned_by_default(self):
         app = self._build_app(GUARD_ENABLED="true")
         client = self._client(app)
