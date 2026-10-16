@@ -169,6 +169,20 @@ class SecurityGuardTestCase(unittest.TestCase):
         resp = client.get("/api/v1/auth/status", headers={"X-Forwarded-For": "198.51.100.9"})
         self.assertEqual(resp.status_code, 403)
 
+    def test_blocklist_returns_403(self):
+        app = self._build_app(GUARD_ENABLED="true", GUARD_BLACKLIST=f"{self.peer},192.0.2.0/24")
+
+        self.assertEqual(self._client(app).get("/api/v1/auth/status").status_code, 403)
+        self.assertEqual(self._client(app, "192.0.2.77").get("/api/v1/auth/status").status_code, 403)
+        self.assertEqual(self._client(app, "198.51.100.200").get("/api/v1/auth/status").status_code, 200)
+
+    def test_passive_mode_does_not_block(self):
+        app = self._build_app(GUARD_ENABLED="true", GUARD_PASSIVE_MODE="true", GUARD_BLACKLIST=self.peer)
+        client = self._client(app)
+
+        self.assertEqual(client.get("/api/v1/auth/status").status_code, 200)
+        self.assertEqual(client.get("/api/v1/auth/status", params={"q": "<script>alert(1)</script>"}).status_code, 200)
+
     def test_attack_in_query_is_blocked(self):
         app = self._build_app(GUARD_ENABLED="true")
         client = self._client(app)
@@ -195,6 +209,73 @@ class SecurityGuardTestCase(unittest.TestCase):
     def test_invalid_integer_setting_fails_fast(self):
         with self.assertRaises(ValueError):
             self._build_app(GUARD_ENABLED="true", GUARD_RATE_LIMIT="many")
+
+
+class UvicornProxyHeadersTestCase(unittest.TestCase):
+    """Uvicorn rewrites the client from X-Forwarded-For before the app; the guard must still hold."""
+
+    _build_app = SecurityGuardTestCase._build_app
+    setUp = SecurityGuardTestCase.setUp
+    _client = SecurityGuardTestCase._client
+
+    def _served_app(self, use_guard_kwargs=True, **env):
+        import uvicorn
+
+        from api.middlewares.security_guard import uvicorn_proxy_kwargs
+
+        app = self._build_app(**env)
+        clean = {k: v for k, v in os.environ.items() if k not in GUARD_ENV_KEYS}
+        clean.update(env, FORWARDED_ALLOW_IPS="*")
+        with patch.dict(os.environ, clean, clear=True):
+            kwargs = uvicorn_proxy_kwargs() if use_guard_kwargs else {}
+            config = uvicorn.Config(app, log_config=None, **kwargs)
+        config.load()
+        return config.loaded_app
+
+    def _rotating_codes(self, served):
+        client = self._client(served)
+        return [
+            client.get("/api/v1/auth/status", headers={"X-Forwarded-For": f"198.18.{next(_PEERS)}.1"}).status_code
+            for _ in range(4)
+        ]
+
+    def test_guard_off_leaves_uvicorn_settings_alone(self):
+        from api.middlewares.security_guard import uvicorn_proxy_kwargs
+
+        with patch.dict(os.environ, {"TRUST_X_FORWARDED_FOR": "true"}, clear=True):
+            self.assertEqual(uvicorn_proxy_kwargs(), {})
+
+    def test_rotating_xff_cannot_change_guard_identity_through_uvicorn(self):
+        env = {"GUARD_ENABLED": "true", "GUARD_RATE_LIMIT": "2"}
+
+        self.assertEqual(self._rotating_codes(self._served_app(**env)), [200, 200, 429, 429])
+        # Same requests without the guard's Uvicorn settings: Uvicorn hands each one a new client address.
+        self.setUp()
+        self.assertEqual(self._rotating_codes(self._served_app(use_guard_kwargs=False, **env)), [200] * 4)
+
+    def test_untrusted_peer_cannot_claim_allowlisted_ip_through_uvicorn(self):
+        served = self._served_app(GUARD_ENABLED="true", TRUST_X_FORWARDED_FOR="true", GUARD_WHITELIST="198.51.100.9")
+
+        spoofed = self._client(served, "203.0.113.250").get(
+            "/api/v1/auth/status", headers={"X-Forwarded-For": "198.51.100.9"}
+        )
+        proxied = self._client(served, "127.0.0.1").get(
+            "/api/v1/auth/status", headers={"X-Forwarded-For": "6.6.6.6, 198.51.100.9"}
+        )
+        self.assertEqual(spoofed.status_code, 403)
+        self.assertEqual(proxied.status_code, 200)
+
+    def test_custom_trusted_proxy_cidr(self):
+        served = self._served_app(
+            GUARD_ENABLED="true",
+            TRUST_X_FORWARDED_FOR="true",
+            GUARD_TRUSTED_PROXIES="10.0.0.0/8",
+            GUARD_WHITELIST="198.51.100.9",
+        )
+        headers = {"X-Forwarded-For": "198.51.100.9"}
+
+        self.assertEqual(self._client(served, "10.1.2.3").get("/api/v1/auth/status", headers=headers).status_code, 200)
+        self.assertEqual(self._client(served, "127.0.0.1").get("/api/v1/auth/status", headers=headers).status_code, 403)
 
 
 if __name__ == "__main__":

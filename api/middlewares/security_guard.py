@@ -36,6 +36,29 @@ def _int(name: str, default: int) -> int:
         raise ValueError(f"{name} must be an integer, got {raw!r}") from exc
 
 
+def _trust_xff() -> bool:
+    return os.getenv("TRUST_X_FORWARDED_FOR", "false").lower() == "true"
+
+
+def _trusted_proxies() -> List[str]:
+    return _csv("GUARD_TRUSTED_PROXIES", "127.0.0.1,::1")
+
+
+def uvicorn_proxy_kwargs() -> dict:
+    """Uvicorn options that keep its proxy-header handling in line with the guard.
+
+    Uvicorn rewrites the client address from X-Forwarded-For (FORWARDED_ALLOW_IPS)
+    before the app runs, so the guard only ever sees the rewritten address. With the
+    guard on, Uvicorn trusts the same proxies as the guard, or none when
+    TRUST_X_FORWARDED_FOR is off. With the guard off nothing changes.
+    """
+    if not is_guard_enabled():
+        return {}
+    if not _trust_xff():
+        return {"proxy_headers": False}
+    return {"proxy_headers": True, "forwarded_allow_ips": _trusted_proxies()}
+
+
 def add_guard_middleware(app) -> None:
     """Mount fastapi-guard when GUARD_ENABLED=true; do nothing (and never import it) otherwise."""
     if not is_guard_enabled():
@@ -48,11 +71,12 @@ def add_guard_middleware(app) -> None:
             "Install it with: pip install -r requirements.txt"
         ) from exc
 
-    # Same trust model as src/auth.get_client_ip(): X-Forwarded-For is only read
-    # when TRUST_X_FORWARDED_FOR=true, and then (depth 1) only its rightmost
-    # entry, and only when the TCP peer is a trusted proxy (loopback by default).
-    trust_xff = os.getenv("TRUST_X_FORWARDED_FOR", "false").lower() == "true"
-    trusted_proxies = tuple(_csv("GUARD_TRUSTED_PROXIES", "127.0.0.1,::1")) if trust_xff else ()
+    # X-Forwarded-For is only read when TRUST_X_FORWARDED_FOR=true, and then (depth 1)
+    # only its rightmost entry, and only when the TCP peer is in GUARD_TRUSTED_PROXIES
+    # (loopback by default). src/auth.get_client_ip() also takes the rightmost entry
+    # but does not check the peer. The server entry points pass uvicorn_proxy_kwargs()
+    # so that Uvicorn does not rewrite the peer from other proxies first.
+    trusted_proxies = tuple(_trusted_proxies()) if _trust_xff() else ()
 
     config = SecurityConfig(
         enable_redis=False,  # in-memory state, per process; no Redis required

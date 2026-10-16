@@ -46,9 +46,12 @@ __all__ = ['app']
 if __name__ == "__main__":
     import uvicorn
 
+    from api.middlewares.security_guard import uvicorn_proxy_kwargs
+
     uvicorn.run(
         "server:app",
         host="0.0.0.0",
         port=8000,
         reload=True,
+        **uvicorn_proxy_kwargs(),
     )
