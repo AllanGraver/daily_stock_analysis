@@ -421,6 +421,12 @@ For the notification baseline, diagnostics, and deployment notes, see [Notificat
 |--------|------|--------|
 | `STOCK_LIST` | Watchlist codes (comma-separated) | - |
 | `MAX_WORKERS` | Concurrent threads | `3` |
+| `GUARD_ENABLED` | Enable the optional [fastapi-guard](https://github.com/Guard-Core/fastapi-guard) security middleware: per-IP rate limiting, IP allow/block list, path/query/header screening and automatic scanner bans. It complements (does not replace) the login failure limiter. State is in process memory, no Redis needed; restart after changing. CORS stays with the existing CORS middleware, which wraps the guard, so 429/403 responses carry CORS headers. Needs the `fastapi-guard` package (listed in `requirements.txt`; enabling without it fails at startup with a clear error) | `false` |
+| `GUARD_RATE_LIMIT` / `GUARD_RATE_LIMIT_WINDOW` | Max requests per IP per window (seconds); static assets and health checks count | `120` / `60` |
+| `GUARD_WHITELIST` / `GUARD_BLACKLIST` | IP allow/block list (comma separated, CIDR ok). When the allowlist is set, every other IP gets 403; listed IPs are exempt from the rate limit | empty |
+| `GUARD_TRUSTED_PROXIES` | Only used when `TRUST_X_FORWARDED_FOR=true`: proxies allowed to set `X-Forwarded-For` (default loopback only). The rightmost entry is used, same as the login limiter, and the header from any other peer is ignored. When `TRUST_X_FORWARDED_FOR` is `false` the TCP peer address is always used. If the proxy is not on loopback (for example a Docker bridge address) list it here, otherwise all users share one rate-limit key | `127.0.0.1,::1` |
+| `GUARD_SCAN_BODY` | Also scan request bodies (default: path, query and headers only) | `false` |
+| `GUARD_PASSIVE_MODE` | Log only, never block; useful for a trial run | `false` |
 | `MARKET_REVIEW_ENABLED` | Enable market review | `true` |
 | `DAILY_MARKET_CONTEXT_ENABLED` | Inject the daily market context into stock-analysis prompts and soften aggressive buy advice in high-risk/risk-off markets; enabled by default, and market review can still run when this is set to `false` | `true` |
 | `MARKET_REVIEW_REGION` | Market review region: cn (A-shares), hk (HK stocks), us (US stocks), jp (JP stocks), kr (KR stocks), both (all five markets) | `cn` |
