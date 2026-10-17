@@ -3,6 +3,7 @@
 
 import errno
 import os
+import stat
 import tempfile
 import unittest
 from pathlib import Path
@@ -85,6 +86,34 @@ class ConfigManagerTestCase(unittest.TestCase):
             )
 
         self.assertEqual(self.env_path.read_text(encoding="utf-8"), "STOCK_LIST=000001\n")
+
+    @unittest.skipIf(os.name == "nt", "POSIX file permissions")
+    def test_apply_updates_preserves_existing_env_permissions(self) -> None:
+        for mode in (0o600, 0o640):
+            for use_fallback in (False, True):
+                with self.subTest(mode=oct(mode), fallback=use_fallback):
+                    self.env_path.write_text("STOCK_LIST=600519\n", encoding="utf-8")
+                    self.env_path.chmod(mode)
+                    original_replace = os.replace
+                    with patch(
+                        "src.core.config_manager.os.replace",
+                        side_effect=OSError(errno.EXDEV, "cross-device") if use_fallback else original_replace,
+                    ):
+                        self.manager.apply_updates(
+                            updates=[("STOCK_LIST", "000001")],
+                            sensitive_keys=set(), mask_token="******",
+                        )
+                    self.assertEqual(stat.S_IMODE(self.env_path.stat().st_mode), mode)
+                    self.assertEqual(self.env_path.read_text(encoding="utf-8"), "STOCK_LIST=000001\n")
+                    self.assertEqual(list(self.env_path.parent.glob("*.tmp")), [])
+
+    @unittest.skipIf(os.name == "nt", "POSIX file permissions")
+    def test_apply_updates_creates_private_env_file(self) -> None:
+        self.manager.apply_updates(
+            updates=[("STOCK_LIST", "000001")],
+            sensitive_keys=set(), mask_token="******",
+        )
+        self.assertEqual(stat.S_IMODE(self.env_path.stat().st_mode), 0o600)
 
     def test_custom_webhook_template_placeholders_are_escaped_for_compose(self) -> None:
         template = '{"title":$title_json,"content":$content_json,"raw":$content,"name":"$OTHER"}'
