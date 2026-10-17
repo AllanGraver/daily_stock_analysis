@@ -28,6 +28,9 @@ function statusMessage(status: AgentBackendStatusResponse, t: ReturnType<typeof 
   if (status.available) return t('settings.agentBackendCanTryDescription');
   if (status.errorCode === 'backend_removed') return t('settings.agentBackendRemoved');
   if (status.errorCode === 'agent_mode_disabled') return t('settings.agentBackendModeDisabled');
+  if (status.errorCode === 'capability_unsupported' && status.message === 'no_agent_primary') {
+    return t('chat.defaultUnavailableMessage');
+  }
   return status.message || t('settings.agentBackendUnavailableDescription');
 }
 

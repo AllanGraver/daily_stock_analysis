@@ -3,6 +3,8 @@ import type React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AgentBackendStatusResponse } from '../../../types/systemConfig';
 import { AgentBackendStatusPanel } from '../AgentBackendStatusPanel';
+import { UiLanguageProvider } from '../../../contexts/UiLanguageContext';
+import { UI_LANGUAGE_STORAGE_KEY } from '../../../utils/uiLanguage';
 
 const { getStatus, previewStatus } = vi.hoisted(() => ({
   getStatus: vi.fn(),
@@ -55,8 +57,39 @@ function renderPanel(overrides: Partial<React.ComponentProps<typeof AgentBackend
 
 describe('AgentBackendStatusPanel', () => {
   beforeEach(() => {
+    window.localStorage.removeItem(UI_LANGUAGE_STORAGE_KEY);
     getStatus.mockReset().mockResolvedValue(litellmStatus);
     previewStatus.mockReset().mockResolvedValue(codexStatus);
+  });
+
+  it.each(['zh', 'en'] as const)('explains missing primary model configuration (%s)', async (language) => {
+    window.localStorage.setItem(UI_LANGUAGE_STORAGE_KEY, language);
+    getStatus.mockResolvedValueOnce({
+      ...litellmStatus,
+      available: false,
+      errorCode: 'capability_unsupported',
+      message: 'no_agent_primary',
+    });
+    render(<UiLanguageProvider><AgentBackendStatusPanel
+      items={[]} maskToken="******" selectedBackend="auto" onEnableAgentMode={vi.fn()}
+    /></UiLanguageProvider>);
+
+    expect(await screen.findByText(language === 'en'
+      ? 'Default-model ask-stock is unavailable. Open Agent settings and review the model configuration.'
+      : '默认模型问股当前不可用，请前往 Agent 设置检查模型配置。')).toBeInTheDocument();
+    expect(screen.queryByText('no_agent_primary')).not.toBeInTheDocument();
+    expect(screen.getByText(/capability_unsupported/)).toBeInTheDocument();
+  });
+
+  it('preserves other capability failure messages', async () => {
+    getStatus.mockResolvedValueOnce({
+      ...litellmStatus,
+      available: false,
+      errorCode: 'capability_unsupported',
+      message: 'Specific capability diagnostic',
+    });
+    renderPanel();
+    expect(await screen.findByText('Specific capability diagnostic')).toBeInTheDocument();
   });
 
   it('checks saved compatibility without offering a model smoke test', async () => {
