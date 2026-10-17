@@ -26,6 +26,7 @@ EXPECTED_TEMPLATE_CHANNELS = {
     "openrouter",
     "requesty",
     "opper",
+    "api_route",
     "gemini",
     "anthropic",
     "openai",

@@ -24,6 +24,7 @@ describe('llmProviderTemplates', () => {
       'openrouter',
       'requesty',
       'opper',
+      'api_route',
       'gemini',
       'anthropic',
       'openai',
