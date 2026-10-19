@@ -115,6 +115,33 @@ class ConfigManagerTestCase(unittest.TestCase):
         )
         self.assertEqual(stat.S_IMODE(self.env_path.stat().st_mode), 0o600)
 
+    @unittest.skipIf(os.name == "nt", "POSIX file permissions")
+    def test_apply_updates_creates_private_env_file_on_fallback_path(self) -> None:
+        """A brand-new .env must stay private when the atomic replace is refused.
+
+        The in-place fallback opens the target with open("w"), so without an
+        explicit chmod the file is created under the process umask -- typically
+        0644. That is exactly the bind-mount case the fallback exists for, and
+        .env holds API keys.
+        """
+        self.env_path.unlink(missing_ok=True)
+        original_umask = os.umask(0o022)
+        try:
+            with patch(
+                "src.core.config_manager.os.replace",
+                side_effect=OSError(errno.EBUSY, "device or resource busy"),
+            ):
+                self.manager.apply_updates(
+                    updates=[("STOCK_LIST", "000001")],
+                    sensitive_keys=set(), mask_token="******",
+                )
+        finally:
+            os.umask(original_umask)
+
+        self.assertEqual(stat.S_IMODE(self.env_path.stat().st_mode), 0o600)
+        self.assertEqual(self.env_path.read_text(encoding="utf-8"), "STOCK_LIST=000001\n")
+        self.assertEqual(list(self.env_path.parent.glob("*.tmp")), [])
+
     def test_custom_webhook_template_placeholders_are_escaped_for_compose(self) -> None:
         template = '{"title":$title_json,"content":$content_json,"raw":$content,"name":"$OTHER"}'
 

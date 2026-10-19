@@ -232,9 +232,10 @@ class ConfigManager:
         if not self._env_path.parent.exists():
             self._env_path.parent.mkdir(parents=True, exist_ok=True)
 
+        env_existed = self._env_path.exists()
         existing_mode = (
             stat.S_IMODE(self._env_path.stat().st_mode)
-            if self._env_path.exists()
+            if env_existed
             else 0o600
         )
         content = "\n".join(entry.render() for entry in entries)
@@ -262,6 +263,12 @@ class ConfigManager:
                     exc.errno,
                 )
                 self._rewrite_in_place(content)
+                if not env_existed:
+                    # open("w") created the file under the process umask, which
+                    # is typically 0644. This is the bind-mount case the fallback
+                    # exists for, so the new .env would ship its secrets
+                    # world-readable.
+                    self._env_path.chmod(existing_mode)
         finally:
             if temp_path.exists():
                 temp_path.unlink()
