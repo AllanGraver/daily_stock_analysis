@@ -1688,6 +1688,8 @@ A: AkShare uses scraping mechanism, may be temporarily rate-limited. System has 
 ### Q: How to add watchlist stocks?
 A: Modify the `STOCK_LIST` environment variable. English commas are recommended between codes. Chinese commas, enumeration commas, semicolons, spaces, and newlines are also recognized and are normalized to English commas after saving in Web settings or using watchlist add/remove actions.
 
+Configuration saves preserve the existing `.env` file permissions. Newly created files default to mode `600` on POSIX systems, allowing only the current user to read and write them.
+
 ### Q: GitHub Actions not executing?
 A: Check if Actions is enabled, and if cron expression is correct (note it's UTC time).
 

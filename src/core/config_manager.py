@@ -7,6 +7,8 @@ import hashlib
 import logging
 import os
 import re
+import stat
+import tempfile
 import threading
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -230,27 +232,43 @@ class ConfigManager:
         if not self._env_path.parent.exists():
             self._env_path.parent.mkdir(parents=True, exist_ok=True)
 
-        temp_path = self._env_path.with_suffix(self._env_path.suffix + ".tmp")
+        env_existed = self._env_path.exists()
+        existing_mode = (
+            stat.S_IMODE(self._env_path.stat().st_mode)
+            if env_existed
+            else 0o600
+        )
         content = "\n".join(entry.render() for entry in entries)
         if content and not content.endswith("\n"):
             content += "\n"
 
-        with temp_path.open("w", encoding="utf-8", newline="\n") as file_obj:
-            file_obj.write(content)
-            file_obj.flush()
-            os.fsync(file_obj.fileno())
-
+        temp_fd, temp_name = tempfile.mkstemp(
+            dir=self._env_path.parent, prefix=f".{self._env_path.name}.", suffix=".tmp",
+        )
+        temp_path = Path(temp_name)
         try:
-            os.replace(temp_path, self._env_path)
-        except OSError as exc:
-            if exc.errno not in _FALLBACK_REWRITE_ERRNOS:
-                raise
+            with os.fdopen(temp_fd, "w", encoding="utf-8", newline="\n") as file_obj:
+                file_obj.write(content)
+                file_obj.flush()
+                os.fsync(file_obj.fileno())
+            temp_path.chmod(existing_mode)
+            try:
+                os.replace(temp_path, self._env_path)
+            except OSError as exc:
+                if exc.errno not in _FALLBACK_REWRITE_ERRNOS:
+                    raise
 
-            logger.warning(
-                "Atomic replace for .env failed with errno=%s, falling back to in-place rewrite",
-                exc.errno,
-            )
-            self._rewrite_in_place(content)
+                logger.warning(
+                    "Atomic replace for .env failed with errno=%s, falling back to in-place rewrite",
+                    exc.errno,
+                )
+                self._rewrite_in_place(content)
+                if not env_existed:
+                    # open("w") created the file under the process umask, which
+                    # is typically 0644. This is the bind-mount case the fallback
+                    # exists for, so the new .env would ship its secrets
+                    # world-readable.
+                    self._env_path.chmod(existing_mode)
         finally:
             if temp_path.exists():
                 temp_path.unlink()
