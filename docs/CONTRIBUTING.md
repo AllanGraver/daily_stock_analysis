@@ -1,120 +1,141 @@
-# 贡献指南
+# Contributing Guide
 
-感谢你对本项目的关注！欢迎任何形式的贡献。
+Thank you for your interest in this project! Contributions of all kinds are welcome.
 
-## 🐛 报告 Bug
+## 🐛 Reporting Bugs
 
-1. 先搜索 [Issues](https://github.com/ZhuLinsen/daily_stock_analysis/issues) 确认问题未被报告
-2. 使用 Bug Report 模板创建新 Issue
-3. 提供详细的复现步骤和环境信息
+1. Search the [existing issues](https://github.com/ZhuLinsen/daily_stock_analysis/issues) to make sure the problem has not already been reported.
+2. Create a new issue using the Bug Report template.
+3. Provide detailed reproduction steps and information about your environment.
 
-## 💡 功能建议
+## 💡 Suggesting Features
 
-1. 先搜索 Issues 确认建议未被提出
-2. 使用 Feature Request 模板创建新 Issue
-3. 详细描述你的使用场景和期望功能
+1. Search the existing issues to make sure the feature has not already been suggested.
+2. Create a new issue using the Feature Request template.
+3. Describe your use case and the expected functionality in detail.
 
-## 🔧 提交代码
+## 🔧 Contributing Code
 
-### 开发环境
+### Development Environment
 
 ```bash
-# 克隆仓库
+# Clone the repository
 git clone https://github.com/ZhuLinsen/daily_stock_analysis.git
 cd daily_stock_analysis
 
-# 创建虚拟环境
+# Create a virtual environment
 python -m venv venv
-source venv/bin/activate  # Linux/Mac
+source venv/bin/activate  # Linux/macOS
 # venv\Scripts\activate   # Windows
 
-# 安装依赖
+# Install dependencies
 pip install -r requirements.txt
 
-# 配置环境变量
+# Configure environment variables
 cp .env.example .env
 ```
 
-### 提交流程
+### Contribution Workflow
 
-1. Fork 本仓库
-2. 创建特性分支：`git checkout -b feature/your-feature`
-3. 提交改动：`git commit -m 'feat: add some feature'`
-4. 推送分支：`git push origin feature/your-feature`
-5. 创建 Pull Request
+1. Fork this repository.
+2. Create a feature branch:
 
-### Commit 规范
+   ```bash
+   git checkout -b feature/your-feature
+   ```
 
-使用 [Conventional Commits](https://www.conventionalcommits.org/) 规范：
+3. Commit your changes:
 
+   ```bash
+   git commit -m "feat: add some feature"
+   ```
+
+4. Push the branch:
+
+   ```bash
+   git push origin feature/your-feature
+   ```
+
+5. Open a Pull Request.
+
+### Commit Convention
+
+Follow the [Conventional Commits specification](https://www.conventionalcommits.org/):
+
+```text
+feat: add a new feature
+fix: fix a bug
+docs: update documentation
+style: update code formatting without changing functionality
+refactor: refactor existing code
+perf: improve performance
+test: add or update tests
+chore: update build tools or project tooling
 ```
-feat: 新功能
-fix: Bug 修复
-docs: 文档更新
-style: 代码格式（不影响功能）
-refactor: 重构
-perf: 性能优化
-test: 测试相关
-chore: 构建/工具相关
+
+Examples:
+
+```text
+feat: add DingTalk bot support
+fix: correct retry logic for 429 rate-limit responses
+docs: update deployment instructions in the README
 ```
 
-示例：
-```
-feat: 添加钉钉机器人支持
-fix: 修复 429 限流重试逻辑
-docs: 更新 README 部署说明
-```
+### Code Standards
 
-### 代码规范
+- Python code must follow PEP 8.
+- Functions and classes must include docstrings.
+- Add comments for important or complex logic.
+- Update the relevant documentation when adding new features.
 
-- Python 代码遵循 PEP 8
-- 函数和类需要添加 docstring
-- 重要逻辑添加注释
-- 新功能需要更新相关文档
+### Automated CI Checks
 
-### CI 自动检查
+After a Pull Request is submitted, CI automatically runs the checks described below.
 
-提交 PR 后，CI 会自动运行以下检查：
+When a change only affects regular files under `docs/**`, non-governance Markdown files, or `LICENSE`, CI retains lightweight change detection, governance validation, and gate-summary checks. However, it skips the three backend test shards, Docker checks, Web checks, and desktop packaging.
 
-仅修改普通 `docs/**`、非治理类 Markdown 或 `LICENSE` 时，CI 保留轻量的变更检测、治理校验和门禁汇总，但跳过 3 个后端测试 shard、Docker、Web 与桌面打包。被离线测试直接读取的契约文档、静态 API 规格与 Markdown fixture 仍会触发后端测试。`AGENTS.md`、`.github/instructions/**`、`.claude/skills/**` 等治理资产仍会由 `ai-governance` 校验；配置、依赖、工作流等会影响运行的文本文件仍执行对应完整检查。
+Contract documentation, static API specifications, and Markdown fixtures that are read directly by offline tests still trigger backend testing.
 
-| 检查项 | 说明 | 必须通过 |
-|--------|------|:--------:|
-| backend-gate | `scripts/ci_gate.sh`（py_compile + flake8 严重错误 + 本地核心脚本 + offline pytest） | ✅ |
-| docker-build | Docker 镜像构建与关键模块导入 smoke | ✅ |
-| web-gate | 前端变更时执行 `npm run lint` + `npm run build` | ✅（触发时） |
-| pr-review | 暂停 PR 自动触发，仅保留维护者通过 `workflow_dispatch` 按 PR 编号手动运行；通过 GitHub API 读取 PR 元数据和 diff，不检出或执行 fork PR 代码 | ❌（辅助项） |
-| network-smoke | 定时/手动执行 `pytest -m network` + `scripts/test.sh quick`（非阻断） | ❌（观测项） |
+Governance assets such as `AGENTS.md`, `.github/instructions/**`, and `.claude/skills/**` are still validated by `ai-governance`. Configuration files, dependencies, workflows, and other text files that can affect runtime behavior still trigger their corresponding full checks.
 
-**本地运行检查：**
+| Check | Description | Required |
+|---|---|:---:|
+| `backend-gate` | Runs `scripts/ci_gate.sh`, including `py_compile`, critical `flake8` checks, local core scripts, and offline `pytest` tests | ✅ |
+| `docker-build` | Builds the Docker image and performs smoke tests for key module imports | ✅ |
+| `web-gate` | Runs `npm run lint` and `npm run build` when frontend changes are detected | ✅ When triggered |
+| `pr-review` | Automatic Pull Request triggering is paused. Maintainers can run it manually through `workflow_dispatch` using the Pull Request number. It reads Pull Request metadata and diffs through the GitHub API without checking out or executing code from forked Pull Requests. | ❌ Supporting check |
+| `network-smoke` | Runs `pytest -m network` and `scripts/test.sh quick` on a schedule or through manual execution. This check is non-blocking. | ❌ Observational check |
+
+**Running checks locally:**
 
 ```bash
-# backend gate（推荐）
+# Backend gate, recommended
 pip install -r requirements.txt
 pip install flake8 pytest
 ./scripts/ci_gate.sh
 
-# 前端 gate（如修改了 apps/dsa-web）
+# Frontend gate, when modifying apps/dsa-web
 cd apps/dsa-web
 npm ci
 npm run lint
 npm run build
 ```
 
-## 📋 优先贡献方向
+## 📋 Priority Contribution Areas
 
-查看 [README](../README.md) 了解项目当前的核心能力与主要入口：
+See the ../README.md for an overview of the project's current core capabilities and main entry points.
 
-- 🔔 新通知渠道（钉钉、飞书、Telegram）
-- 🤖 新 AI 模型支持（GPT-4、Claude）
-- 📊 新数据源接入
-- 🐛 Bug 修复和性能优化
-- 📖 文档完善和翻译
+- 🔔 New notification channels, such as DingTalk, Feishu, and Telegram
+- 🤖 Support for additional AI models, such as GPT-4 and Claude
+- 📊 Integration with additional data sources
+- 🐛 Bug fixes and performance improvements
+- 📖 Documentation improvements and translations
 
-## ❓ 问题解答
+## ❓ Questions and Support
 
-如有任何问题，欢迎：
-- 创建 Issue 讨论
-- 查看已有 Issue 和 Discussion
+If you have any questions, you are welcome to:
 
-再次感谢你的贡献！ 🎉
+- Create an issue for discussion.
+- Review existing issues and discussions.
+
+Thank you again for your contribution! 🎉
